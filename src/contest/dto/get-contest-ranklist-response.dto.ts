@@ -27,6 +27,12 @@ export class ContestRanklistProblemStatusDto {
   solveTime?: number;
 
   @ApiProperty()
+  firstAcceptTime?: number;
+
+  @ApiProperty()
+  lastSubmitTime?: number;
+
+  @ApiProperty()
   status?: string;
 }
 

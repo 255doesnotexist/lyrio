@@ -164,9 +164,19 @@ export class UserController {
 
     const error = await this.userPrivilegeService.setUserPrivileges(request.userId, request.privileges);
 
+    // Update isHiddenFromHomeRanking if provided
+    if (request.isHiddenFromHomeRanking !== undefined) {
+      const user = await this.userService.findUserById(request.userId);
+      if (user) {
+        user.isHiddenFromHomeRanking = request.isHiddenFromHomeRanking;
+        await this.userService.updateUser(user);
+      }
+    }
+
     await this.auditService.log("user.set_privileges", AuditLogObjectType.User, request.userId, {
       oldPrivileges,
-      newPrivileges: request.privileges
+      newPrivileges: request.privileges,
+      isHiddenFromHomeRanking: request.isHiddenFromHomeRanking
     });
 
     return {

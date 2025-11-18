@@ -370,10 +370,32 @@ export class ContestService {
         const score = maxScoreResult?.maxScore || 0;
         totalScore += score;
 
+        // Get first AC time (score = 100)
+        let firstAcceptTime: number = null;
+        if (score === 100) {
+          const firstFullScore = await this.submissionRepository
+            .createQueryBuilder("s")
+            .where("s.contestId = :contestId", { contestId: contest.id })
+            .andWhere("s.submitterId = :userId", { userId: user.id })
+            .andWhere("s.problemId = :problemId", { problemId: cp.problemId })
+            .andWhere("s.score = 100")
+            .andWhere("s.submitTime >= :startTime", { startTime: contest.startTime })
+            .andWhere("s.submitTime <= :endTime", { endTime: contest.endTime })
+            .orderBy("s.submitTime", "ASC")
+            .getOne();
+
+          if (firstFullScore) {
+            firstAcceptTime = Math.floor(
+              (firstFullScore.submitTime.getTime() - contest.startTime.getTime()) / (1000 * 60)
+            );
+          }
+        }
+
         problemStatuses.push({
           problemId: cp.problemId,
           orderIndex: cp.orderIndex,
           score: score,
+          firstAcceptTime,
           status: score > 0 ? "solved" : null
         });
       }
@@ -494,11 +516,32 @@ export class ContestService {
             .andWhere("s.submitTime <= :endTime", { endTime: contest.endTime })
             .getCount();
 
+          // Get last submit time
+          let lastSubmitTime: number = null;
+          if (wrongAttempts > 0) {
+            const lastSubmission = await this.submissionRepository
+              .createQueryBuilder("s")
+              .where("s.contestId = :contestId", { contestId: contest.id })
+              .andWhere("s.submitterId = :userId", { userId: user.id })
+              .andWhere("s.problemId = :problemId", { problemId: cp.problemId })
+              .andWhere("s.submitTime >= :startTime", { startTime: contest.startTime })
+              .andWhere("s.submitTime <= :endTime", { endTime: contest.endTime })
+              .orderBy("s.submitTime", "DESC")
+              .getOne();
+
+            if (lastSubmission) {
+              lastSubmitTime = Math.floor(
+                (lastSubmission.submitTime.getTime() - contest.startTime.getTime()) / (1000 * 60)
+              );
+            }
+          }
+
           problemStatuses.push({
             problemId: cp.problemId,
             orderIndex: cp.orderIndex,
             accepted: false,
-            wrongAttempts
+            wrongAttempts,
+            lastSubmitTime
           });
         }
       }
