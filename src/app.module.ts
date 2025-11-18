@@ -22,6 +22,7 @@ import { FileModule } from "./file/file.module";
 import { SubmissionModule } from "./submission/submission.module";
 import { JudgeModule } from "./judge/judge.module";
 import { DiscussionModule } from "./discussion/discussion.module";
+import { ContestModule } from "./contest/contest.module";
 import { MigrationModule } from "./migration/migration.module";
 import { EventReportModule } from "./event-report/event-report.module";
 import { HomepageModule } from "./homepage/homepage.module";
@@ -44,6 +45,7 @@ import { MetricsModule } from "./metrics/metrics.module";
     forwardRef(() => SubmissionModule),
     forwardRef(() => JudgeModule),
     forwardRef(() => DiscussionModule),
+    forwardRef(() => ContestModule),
     forwardRef(() => EventReportModule),
     forwardRef(() => HomepageModule),
     forwardRef(() => MigrationModule),

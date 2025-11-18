@@ -234,7 +234,8 @@ export class SubmissionService implements JudgeTaskService<SubmissionProgress, S
     minId: number,
     maxId: number,
     publicOnly: boolean,
-    takeCount: number
+    takeCount: number,
+    contestId?: number
   ): Promise<{ result: SubmissionEntity[]; hasSmallerId: boolean; hasLargerId: boolean }> {
     const queryBuilder = this.submissionRepository.createQueryBuilder();
 
@@ -265,6 +266,12 @@ export class SubmissionService implements JudgeTaskService<SubmissionProgress, S
     if (status) {
       queryBuilder.andWhere("status = :status", {
         status
+      });
+    }
+
+    if (contestId != null) {
+      queryBuilder.andWhere("contestId = :contestId", {
+        contestId
       });
     }
 
@@ -324,7 +331,8 @@ export class SubmissionService implements JudgeTaskService<SubmissionProgress, S
     submitter: UserEntity,
     problem: ProblemEntity,
     content: SubmissionContent,
-    uploadInfo: FileUploadInfoDto
+    uploadInfo: FileUploadInfoDto,
+    contestId?: number
   ): Promise<
     [
       errors: ValidationError[],
@@ -374,6 +382,7 @@ export class SubmissionService implements JudgeTaskService<SubmissionProgress, S
       submission.submitTime = new Date();
       submission.problemId = problem.id;
       submission.submitterId = submitter.id;
+      submission.contestId = contestId || null;
       await transactionalEntityManager.save(submission);
 
       const submissionDetail = new SubmissionDetailEntity();

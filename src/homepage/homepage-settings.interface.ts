@@ -96,7 +96,9 @@ export class HomepageSettings {
         [Locale.en_US]:
           "## Congratulations 🎉\n\nIf you see this notice, the Lyrio online judge system is successfully installed and working. Further configuration is required.\n\nYou can edit or disable this message in [Homepage Settings](/homepage-settings).\n\n**Thank you for using Lyrio.**",
         [Locale.zh_CN]:
-          "## 恭喜 🎉\n\n如果您看到该提示，说明 Lyrio 在线评测系统已经成功安装并正在工作。接下来您需要进行配置。\n\n您可以在[首页设置](/homepage-settings)中编辑或禁用该信息。\n\n**感谢您使用 Lyrio。**"
+          "## 恭喜 🎉\n\n如果您看到该提示，说明 Lyrio 在线评测系统已经成功安装并正在工作。接下来您需要进行配置。\n\n您可以在[首页设置](/homepage-settings)中编辑或禁用该信息。\n\n**感谢您使用 Lyrio。**",
+        [Locale.pl_PL]:
+          "## Gratulacje 🎉\n\nJeśli widzisz to powiadomienie, system oceniania online Lyrio został pomyślnie zainstalowany i działa. Wymagana jest dalsza konfiguracja.\n\nMożesz edytować lub wyłączyć tę wiadomość w [Ustawieniach strony głównej](/homepage-settings).\n\n**Dziękujemy za korzystanie z Lyrio.**"
       }
     },
     annnouncements: {

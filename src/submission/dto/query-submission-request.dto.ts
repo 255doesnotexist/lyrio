@@ -54,4 +54,9 @@ export class QuerySubmissionRequestDto {
   @IsPositive()
   @IsInt()
   takeCount: number;
+
+  @ApiProperty()
+  @IsInt()
+  @IsOptional()
+  contestId: number;
 }

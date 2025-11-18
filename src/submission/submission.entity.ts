@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Index, ManyToOne, Column, JoinColumn, O
 
 import { UserEntity } from "@/user/user.entity";
 import { ProblemEntity } from "@/problem/problem.entity";
+import { ContestEntity } from "@/contest/contest.entity";
 
 import { SubmissionStatus } from "./submission-status.enum";
 import { SubmissionDetailEntity } from "./submission-detail.entity";
@@ -16,6 +17,9 @@ import { SubmissionDetailEntity } from "./submission-detail.entity";
 @Index(["problemId", "submitterId"])
 @Index(["submitterId", "status"])
 @Index(["submitTime", "submitterId"])
+@Index(["contestId", "problemId"])
+@Index(["contestId", "submitterId"])
+@Index(["contestId", "submitTime"])
 export class SubmissionEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -25,6 +29,16 @@ export class SubmissionEntity {
   @Column({ type: "varchar", nullable: true, length: 36 })
   @Index()
   taskId: string;
+
+  // Contest ID if this submission belongs to a contest
+  // NULL means it's a normal submission (not in a contest)
+  @ManyToOne(() => ContestEntity, { onDelete: "SET NULL" })
+  @JoinColumn()
+  contest: Promise<ContestEntity>;
+
+  @Column({ type: "integer", nullable: true })
+  @Index()
+  contestId: number;
 
   // By default it equals to the problem's isPublic
   @Column({ type: "boolean" })

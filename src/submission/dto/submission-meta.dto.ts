@@ -50,4 +50,10 @@ export class SubmissionMetaDto extends SubmissionBasicMetaDto {
   // Only for non-finished and non-waiting submissions
   @ApiProperty()
   progressType?: SubmissionProgressType;
+
+  @ApiProperty()
+  contestId?: number;
+
+  @ApiProperty()
+  contestTitle?: string;
 }

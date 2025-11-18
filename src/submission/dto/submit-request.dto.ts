@@ -19,4 +19,9 @@ export class SubmitRequestDto {
   @Type(() => FileUploadInfoDto)
   @IsOptional()
   readonly uploadInfo?: FileUploadInfoDto;
+
+  @ApiProperty({ required: false })
+  @IsInt()
+  @IsOptional()
+  readonly contestId?: number;
 }

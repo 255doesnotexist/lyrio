@@ -1,5 +1,6 @@
 export enum SubmissionStatus {
   Pending = "Pending",
+  Hidden = "Hidden",
 
   ConfigurationError = "ConfigurationError",
   SystemError = "SystemError",

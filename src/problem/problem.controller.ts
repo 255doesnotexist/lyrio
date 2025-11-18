@@ -16,6 +16,7 @@ import { SubmissionService } from "@/submission/submission.service";
 import { SubmissionStatus } from "@/submission/submission-status.enum";
 import { AuditLogObjectType, AuditService } from "@/audit/audit.service";
 import { DiscussionService } from "@/discussion/discussion.service";
+import { ContestService } from "@/contest/contest.service";
 
 import { ProblemFileType } from "./problem-file.entity";
 import { ProblemEntity } from "./problem.entity";
@@ -94,7 +95,8 @@ export class ProblemController {
     private readonly fileService: FileService,
     private readonly submissionService: SubmissionService,
     private readonly auditService: AuditService,
-    private readonly discussionService: DiscussionService
+    private readonly discussionService: DiscussionService,
+    private readonly contestService: ContestService
   ) {}
 
   @Post("queryProblemSet")
@@ -315,7 +317,25 @@ export class ProblemController {
         error: GetProblemResponseError.NO_SUCH_PROBLEM
       };
 
-    if (!(await this.problemService.userHasPermission(currentUser, problem, ProblemPermissionType.View)))
+    // Check if accessing through a contest context
+    let hasContestAccess = false;
+    if (request.contestId != null) {
+      const contest = await this.contestService.findContestById(request.contestId);
+      if (contest) {
+        // Check if the problem is in the contest
+        const isProblemInContest = await this.contestService.isProblemInContest(request.contestId, problem.id);
+        if (isProblemInContest) {
+          // Check if user is registered for the contest
+          const isRegistered = currentUser && (await this.contestService.isUserRegisteredForContest(request.contestId, currentUser.id));
+          if (isRegistered) {
+            hasContestAccess = true;
+          }
+        }
+      }
+    }
+
+    // If not accessing through contest or doesn't have contest access, check normal problem permissions
+    if (!hasContestAccess && !(await this.problemService.userHasPermission(currentUser, problem, ProblemPermissionType.View)))
       return {
         error: GetProblemResponseError.PERMISSION_DENIED
       };

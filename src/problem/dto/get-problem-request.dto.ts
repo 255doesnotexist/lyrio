@@ -94,4 +94,9 @@ export class GetProblemRequestDto {
   @IsBoolean()
   @IsOptional()
   readonly lastSubmissionAndLastAcceptedSubmission?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsInt()
+  @IsOptional()
+  readonly contestId?: number;
 }

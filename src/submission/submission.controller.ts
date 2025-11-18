@@ -1,4 +1,4 @@
-import { Controller, Post, Body, BadRequestException } from "@nestjs/common";
+import { Controller, Post, Body, BadRequestException, Inject, forwardRef } from "@nestjs/common";
 import { ApiOperation, ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 import { Recaptcha } from "@nestlab/google-recaptcha";
@@ -13,6 +13,7 @@ import { ProblemEntity } from "@/problem/problem.entity";
 import { AuditLogObjectType, AuditService } from "@/audit/audit.service";
 import { MinioSignFor, FileService } from "@/file/file.service";
 import { ProblemTypeFactoryService } from "@/problem-type/problem-type-factory.service";
+import { ContestService } from "@/contest/contest.service";
 
 import { SubmissionStatus } from "./submission-status.enum";
 import { SubmissionStatisticsService } from "./submission-statistics.service";
@@ -65,8 +66,59 @@ export class SubmissionController {
     private readonly submissionProgressService: SubmissionProgressService,
     private readonly submissionStatisticsService: SubmissionStatisticsService,
     private readonly auditService: AuditService,
-    private readonly fileService: FileService
+    private readonly fileService: FileService,
+    @Inject(forwardRef(() => ContestService))
+    private readonly contestService: ContestService
   ) {}
+
+  private hideTestCaseScores(result: any, originalStatus: SubmissionStatus, isAdmin: boolean): any {
+    // Don't hide if status is CompilationError or RuntimeError
+    if (originalStatus === SubmissionStatus.CompilationError || originalStatus === SubmissionStatus.RuntimeError) {
+      return result;
+    }
+
+    // Deep clone and hide scores
+    const hiddenResult = JSON.parse(JSON.stringify(result));
+
+    const hideTestCase = (testcase: any) => {
+      if (isAdmin) {
+        // Admin can see real status with asterisk marker
+        return {
+          ...testcase,
+          status: testcase.status ? testcase.status + "*" : "Hidden*",
+          isHiddenForUsers: true
+        };
+      } else {
+        // Normal users see Hidden
+        return {
+          ...testcase,
+          score: null,
+          status: "Hidden"
+        };
+      }
+    };
+
+    // Hide samples
+    if (hiddenResult.samples) {
+      hiddenResult.samples = hiddenResult.samples.map(hideTestCase);
+    }
+
+    // Hide testcases
+    if (hiddenResult.testcases) {
+      hiddenResult.testcases = hiddenResult.testcases.map(hideTestCase);
+    }
+
+    // Hide subtasks
+    if (hiddenResult.subtasks) {
+      hiddenResult.subtasks = hiddenResult.subtasks.map(subtask => ({
+        ...subtask,
+        score: isAdmin ? subtask.score : null,
+        testcases: subtask.testcases.map(hideTestCase)
+      }));
+    }
+
+    return hiddenResult;
+  }
 
   @Recaptcha()
   @ApiOperation({
@@ -87,8 +139,25 @@ export class SubmissionController {
           error: SubmitResponseError.NO_SUCH_PROBLEM
         };
 
-      // TODO: add "submit" permission
-      if (!(await this.problemService.userHasPermission(currentUser, problem, ProblemPermissionType.View)))
+      // Check if submitting through a contest context
+      let hasContestAccess = false;
+      if (request.contestId != null) {
+        const contest = await this.contestService.findContestById(request.contestId);
+        if (contest) {
+          // Check if the problem is in the contest
+          const isProblemInContest = await this.contestService.isProblemInContest(request.contestId, problem.id);
+          if (isProblemInContest) {
+            // Check if user is registered for the contest
+            const isRegistered = await this.contestService.isUserRegisteredForContest(request.contestId, currentUser.id);
+            if (isRegistered) {
+              hasContestAccess = true;
+            }
+          }
+        }
+      }
+
+      // If not submitting through contest or doesn't have contest access, check normal problem permissions
+      if (!hasContestAccess && !(await this.problemService.userHasPermission(currentUser, problem, ProblemPermissionType.View)))
         return {
           error: SubmitResponseError.PERMISSION_DENIED
         };
@@ -103,7 +172,8 @@ export class SubmissionController {
         currentUser,
         problem,
         request.content,
-        request.uploadInfo
+        request.uploadInfo,
+        request.contestId
       );
 
       if (validationError && validationError.length > 0) throw new BadRequestException(validationError);
@@ -173,33 +243,54 @@ export class SubmissionController {
       !(hasManageProblemPrivilege || hasViewProblemPermission || isSubmissionsOwned),
       request.takeCount > this.configService.config.queryLimit.submissions
         ? this.configService.config.queryLimit.submissions
-        : request.takeCount
+        : request.takeCount,
+      request.contestId
     );
 
     const submissionMetas: SubmissionMetaDto[] = new Array(queryResult.result.length);
-    const [problems, submitters] = await Promise.all([
+    const uniqueContestIds = [...new Set(queryResult.result.map(s => s.contestId).filter(id => id != null))];
+    const [problems, submitters, contests] = await Promise.all([
       this.problemService.findProblemsByExistingIds(queryResult.result.map(submission => submission.problemId)),
-      this.userService.findUsersByExistingIds(queryResult.result.map(submission => submission.submitterId))
+      this.userService.findUsersByExistingIds(queryResult.result.map(submission => submission.submitterId)),
+      uniqueContestIds.length > 0
+        ? Promise.all(uniqueContestIds.map(id => this.contestService.findContestById(id)))
+        : Promise.resolve([])
     ]);
+    const contestMap = new Map(contests.filter(c => c).map(c => [c.id, c]));
     const pendingSubmissionIds: number[] = [];
     await Promise.all(
       queryResult.result.map(async (_, i) => {
         const submission = queryResult.result[i];
         const titleLocale = problems[i].locales.includes(request.locale) ? request.locale : problems[i].locales[0];
 
+        // Check if this submission should have its score/status hidden (OI contest during competition)
+        let shouldHideScore = false;
+        if (submission.contestId) {
+          const contest = contestMap.get(submission.contestId);
+          if (contest && contest.type === "OI") {
+            const now = new Date();
+            const endTime = new Date(contest.endTime);
+            if (now < endTime) {
+              shouldHideScore = true;
+            }
+          }
+        }
+
         submissionMetas[i] = {
           id: submission.id,
           isPublic: submission.isPublic,
           codeLanguage: submission.codeLanguage,
           answerSize: submission.answerSize,
-          score: submission.score,
-          status: submission.status,
+          score: shouldHideScore ? null : submission.score,
+          status: shouldHideScore ? ("Hidden" as any) : submission.status,
           submitTime: submission.submitTime,
           problem: await this.problemService.getProblemMeta(problems[i]),
           problemTitle: await this.problemService.getProblemLocalizedTitle(problems[i], titleLocale),
           submitter: await this.userService.getUserMeta(submitters[i], currentUser),
-          timeUsed: submission.timeUsed,
-          memoryUsed: submission.memoryUsed
+          timeUsed: shouldHideScore ? null : submission.timeUsed,
+          memoryUsed: shouldHideScore ? null : submission.memoryUsed,
+          contestId: submission.contestId,
+          contestTitle: submission.contestId ? contestMap.get(submission.contestId)?.title : undefined
         };
 
         // For progress reporting
@@ -273,7 +364,8 @@ export class SubmissionController {
       permissionRejudge,
       permissionCancel,
       permissionSetPublic,
-      permissionDelete
+      permissionDelete,
+      contest
     ] = await Promise.all([
       this.userService.findUserById(submission.submitterId),
       this.submissionService.getSubmissionDetail(submission),
@@ -305,8 +397,28 @@ export class SubmissionController {
         SubmissionPermissionType.Delete,
         problem,
         hasPrivilege
-      )
+      ),
+      submission.contestId ? this.contestService.findContestById(submission.contestId) : Promise.resolve(null)
     ]);
+
+    // Check if this submission should have its score/status hidden (OI contest during competition)
+    let shouldHideScore = false;
+    if (submission.contestId && contest && contest.type === "OI") {
+      const now = new Date();
+      const endTime = new Date(contest.endTime);
+      if (now < endTime) {
+        shouldHideScore = true;
+      }
+    }
+
+    // Determine if current user is admin
+    const isAdmin = currentUser && (currentUser.isAdmin || hasPrivilege);
+
+    // Hide test case scores in result if needed
+    let processedResult = submissionDetail.result;
+    if (shouldHideScore && processedResult) {
+      processedResult = this.hideTestCaseScores(processedResult, submission.status, isAdmin);
+    }
 
     return {
       meta: {
@@ -314,17 +426,19 @@ export class SubmissionController {
         isPublic: submission.isPublic,
         codeLanguage: submission.codeLanguage,
         answerSize: submission.answerSize,
-        score: submission.score,
-        status: submission.status,
+        score: shouldHideScore && !isAdmin ? null : submission.score,
+        status: shouldHideScore && !isAdmin ? ("Hidden" as any) : submission.status,
         submitTime: submission.submitTime,
         problem: await this.problemService.getProblemMeta(problem),
         problemTitle: await this.problemService.getProblemLocalizedTitle(problem, titleLocale),
         submitter: await this.userService.getUserMeta(submitter, currentUser),
-        timeUsed: submission.timeUsed,
-        memoryUsed: submission.memoryUsed
+        timeUsed: shouldHideScore && !isAdmin ? null : submission.timeUsed,
+        memoryUsed: shouldHideScore && !isAdmin ? null : submission.memoryUsed,
+        contestId: submission.contestId,
+        contestTitle: contest?.title
       },
       content: submissionDetail.content,
-      progress: progress || submissionDetail.result,
+      progress: progress || processedResult,
       progressSubscriptionKey: !pending
         ? null
         : this.submissionProgressGateway.encodeSubscription({
