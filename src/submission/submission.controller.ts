@@ -420,6 +420,10 @@ export class SubmissionController {
       processedResult = this.hideTestCaseScores(processedResult, submission.status, isAdmin);
     }
 
+    // Check if user can view the code content
+    // Only the submitter or admins can view the code
+    const canViewCode = currentUser && (currentUser.id === submission.submitterId || isAdmin);
+
     return {
       meta: {
         id: submission.id,
@@ -437,7 +441,7 @@ export class SubmissionController {
         contestId: submission.contestId,
         contestTitle: contest?.title
       },
-      content: submissionDetail.content,
+      content: canViewCode ? submissionDetail.content : null,
       progress: progress || processedResult,
       progressSubscriptionKey: !pending
         ? null
