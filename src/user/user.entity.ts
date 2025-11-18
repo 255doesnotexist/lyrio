@@ -35,6 +35,21 @@ export class UserEntity {
   @Column({ type: "boolean" })
   isAdmin: boolean;
 
+  @Column({ type: "boolean", default: false })
+  isOwner: boolean;
+
+  @Column({ type: "boolean", default: false })
+  isBanned: boolean;
+
+  @Column({ type: "text", nullable: true })
+  banReason: string;
+
+  @Column({ type: "boolean", default: false })
+  isHiddenFromHomeRanking: boolean;
+
+  @Column({ type: "boolean", default: false })
+  requirePasswordChange: boolean;
+
   @Column({ type: "integer" })
   acceptedProblemCount: number;
 

@@ -154,11 +154,22 @@ export class AuthController {
       };
     }
 
+    // Check if user is banned
+    if (user.isBanned) {
+      await this.auditService.log(user.id, "auth.login_failed.banned");
+
+      return {
+        error: LoginResponseError.USER_BANNED,
+        banReason: user.banReason
+      };
+    }
+
     await this.auditService.log(user.id, "auth.login");
 
     return {
       token: await this.authSessionService.newSession(user, req.ip, req.headers["user-agent"]),
-      username: user.username
+      username: user.username,
+      requirePasswordChange: user.requirePasswordChange || false
     };
   }
 

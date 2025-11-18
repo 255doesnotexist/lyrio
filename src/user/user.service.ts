@@ -12,6 +12,8 @@ import { SubmissionEntity } from "@/submission/submission.entity";
 import { SubmissionStatus } from "@/submission/submission-status.enum";
 import { ConfigService } from "@/config/config.service";
 import { AuthEmailVerificationCodeService } from "@/auth/auth-email-verification-code.service";
+import { AuthService } from "@/auth/auth.service";
+import { UserAuthEntity } from "@/auth/user-auth.entity";
 import { AuditLogObjectType, AuditService } from "@/audit/audit.service";
 import { delay, DELAY_FOR_SECURITY } from "@/common/delay";
 
@@ -37,10 +39,14 @@ export class UserService {
     private readonly connection: DataSource,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(UserAuthEntity)
+    private readonly userAuthRepository: Repository<UserAuthEntity>,
     @InjectRepository(UserInformationEntity)
     private readonly userInformationRepository: Repository<UserInformationEntity>,
     @InjectRepository(UserPreferenceEntity)
     private readonly userPreferenceRepository: Repository<UserPreferenceEntity>,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
     @Inject(forwardRef(() => AuthEmailVerificationCodeService))
     private readonly authEmailVerificationCodeService: AuthEmailVerificationCodeService,
     @Inject(forwardRef(() => LockService))
@@ -137,6 +143,9 @@ export class UserService {
       nickname: user.nickname,
       bio: user.bio,
       isAdmin: user.isAdmin,
+      isOwner: user.isOwner || false,
+      isBanned: user.isBanned || false,
+      banReason: user.banReason || null,
       acceptedProblemCount: user.acceptedProblemCount,
       submissionCount: user.submissionCount,
       rating: user.rating,
@@ -264,6 +273,9 @@ export class UserService {
     takeCount: number
   ): Promise<[users: UserEntity[], count: number]> {
     return await this.userRepository.findAndCount({
+      where: {
+        isHiddenFromHomeRanking: false
+      },
       order: {
         [sortBy]: "DESC"
       },
@@ -300,6 +312,10 @@ export class UserService {
       .execute();
   }
 
+  async updateUser(user: UserEntity): Promise<void> {
+    await this.userRepository.save(user);
+  }
+
   async updateUserSubmissionCount(userId: number, incSubmissionCount: number): Promise<void> {
     if (incSubmissionCount !== 0) {
       await this.userRepository.increment({ id: userId }, "submissionCount", incSubmissionCount);
@@ -330,10 +346,12 @@ export class UserService {
       (await this.userRepository.countBy(
         this.configService.config.preference.misc.sortUserByRating
           ? {
-              rating: MoreThan(user.rating)
+              rating: MoreThan(user.rating),
+              isHiddenFromHomeRanking: false
             }
           : {
-              acceptedProblemCount: MoreThan(user.acceptedProblemCount)
+              acceptedProblemCount: MoreThan(user.acceptedProblemCount),
+              isHiddenFromHomeRanking: false
             }
       ))
     );
@@ -348,5 +366,62 @@ export class UserService {
     const userPreference = await this.userPreferenceRepository.findOneBy({ userId: user.id });
     userPreference.preference = preference;
     await this.userPreferenceRepository.save(userPreference);
+  }
+
+  /**
+   * Create a new user directly (admin operation).
+   * Unlike register(), this doesn't check for first user or handle email verification.
+   */
+  async createUser(
+    username: string,
+    email: string,
+    nickname: string,
+    password: string,
+    requirePasswordChange: boolean
+  ): Promise<UserEntity> {
+    let user: UserEntity;
+
+    try {
+      await this.connection.transaction("READ COMMITTED", async transactionalEntityManager => {
+        user = new UserEntity();
+        user.username = username;
+        user.email = email;
+        user.publicEmail = false;
+        user.nickname = nickname;
+        user.bio = "";
+        user.avatarInfo = "gravatar:";
+        user.isAdmin = false;
+        user.submissionCount = 0;
+        user.acceptedProblemCount = 0;
+        user.rating = 0;
+        user.requirePasswordChange = requirePasswordChange;
+        user.registrationTime = new Date();
+        await transactionalEntityManager.save(user);
+
+        const userAuth = new UserAuthEntity();
+        userAuth.userId = user.id;
+        await this.authService.changePassword(userAuth, password, transactionalEntityManager);
+
+        const userInformation = new UserInformationEntity();
+        userInformation.userId = user.id;
+        userInformation.organization = "";
+        userInformation.location = "";
+        userInformation.url = "";
+        userInformation.telegram = "";
+        userInformation.qq = "";
+        userInformation.github = "";
+        await transactionalEntityManager.save(userInformation);
+
+        const userPreference = new UserPreferenceEntity();
+        userPreference.userId = user.id;
+        userPreference.preference = {};
+        await transactionalEntityManager.save(userPreference);
+      });
+
+      return user;
+    } catch (e) {
+      // Re-throw to let caller handle duplicate username/email errors
+      throw e;
+    }
   }
 }

@@ -16,12 +16,14 @@ export class GetUserDetailRequestDto {
   username?: string;
 
   // Below props are for the data for subway graph
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsString()
   @MaxLength(50)
-  timezone: string;
+  @IsOptional()
+  timezone?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsDateString()
-  now: string;
+  @IsOptional()
+  now?: string;
 }

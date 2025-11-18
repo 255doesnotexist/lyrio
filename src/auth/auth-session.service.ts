@@ -85,7 +85,16 @@ export class AuthSessionService {
       const success = await this.redis.callSessionManager("access", +new Date(), userId, sessionId);
       if (!success) return [null, null];
 
-      return [sessionId, await this.userService.findUserById(userId)];
+      const user = await this.userService.findUserById(userId);
+
+      // Check if user is banned
+      if (user && user.isBanned) {
+        // Revoke all sessions for banned user
+        await this.revokeAllSessionsExcept(userId, null);
+        return [null, null];
+      }
+
+      return [sessionId, user];
     } catch (e) {
       return [null, null];
     }

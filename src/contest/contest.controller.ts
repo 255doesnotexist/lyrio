@@ -28,7 +28,10 @@ import {
   RegisterContestResponseError,
   UnregisterContestRequestDto,
   UnregisterContestResponseDto,
-  UnregisterContestResponseError
+  UnregisterContestResponseError,
+  CalculateContestRatingRequestDto,
+  CalculateContestRatingResponseDto,
+  CalculateContestRatingResponseError
 } from "./dto";
 
 @ApiTags("Contest")
@@ -313,6 +316,42 @@ export class ContestController {
 
     // Unregister user
     await this.contestService.unregisterUserFromContest(contest.id, currentUser.id);
+
+    return {};
+  }
+
+  @Post("calculateContestRating")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Calculate rating changes for a contest (admin only)." })
+  async calculateContestRating(
+    @CurrentUser() currentUser: UserEntity,
+    @Body() request: CalculateContestRatingRequestDto
+  ): Promise<CalculateContestRatingResponseDto> {
+    // Check if user is admin
+    if (!currentUser || !currentUser.isAdmin) {
+      return {
+        error: CalculateContestRatingResponseError.PERMISSION_DENIED
+      };
+    }
+
+    // Get contest
+    const contest = await this.contestService.findContestById(request.contestId);
+    if (!contest) {
+      return {
+        error: CalculateContestRatingResponseError.NO_SUCH_CONTEST
+      };
+    }
+
+    // Check if contest has ended
+    const now = new Date();
+    if (now < contest.endTime) {
+      return {
+        error: CalculateContestRatingResponseError.CONTEST_NOT_ENDED
+      };
+    }
+
+    // Calculate ratings
+    await this.contestService.calculateContestRatings(contest);
 
     return {};
   }

@@ -4,7 +4,6 @@ import { UserEntity } from "@/user/user.entity";
 import { ContestEntity } from "./contest.entity";
 
 @Entity("contest_registration")
-@Index(["contestId", "userId"], { unique: true })
 @Index(["userId", "registrationTime"])
 export class ContestRegistrationEntity {
   @PrimaryColumn()

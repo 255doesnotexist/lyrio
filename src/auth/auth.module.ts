@@ -27,6 +27,12 @@ import { AuthIpLocationService } from "./auth-ip-location.service";
   ],
   providers: [AuthService, AuthEmailVerificationCodeService, AuthSessionService, AuthIpLocationService],
   controllers: [AuthController],
-  exports: [AuthService, AuthEmailVerificationCodeService, AuthSessionService, AuthIpLocationService]
+  exports: [
+    TypeOrmModule,
+    AuthService,
+    AuthEmailVerificationCodeService,
+    AuthSessionService,
+    AuthIpLocationService
+  ]
 })
 export class AuthModule {}

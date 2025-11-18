@@ -16,3 +16,5 @@ export * from "./register-contest-request.dto";
 export * from "./register-contest-response.dto";
 export * from "./unregister-contest-request.dto";
 export * from "./unregister-contest-response.dto";
+export * from "./calculate-contest-rating-request.dto";
+export * from "./calculate-contest-rating-response.dto";

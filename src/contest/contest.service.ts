@@ -6,6 +6,8 @@ import { UserEntity } from "@/user/user.entity";
 import { ProblemEntity } from "@/problem/problem.entity";
 import { SubmissionEntity } from "@/submission/submission.entity";
 import { SubmissionStatus } from "@/submission/submission-status.enum";
+import { LocalizedContentService } from "@/localized-content/localized-content.service";
+import { LocalizedContentType } from "@/localized-content/localized-content.entity";
 
 import { ContestEntity } from "./contest.entity";
 import { ContestProblemEntity } from "./contest-problem.entity";
@@ -17,6 +19,7 @@ import {
   ContestRanklistItemDto,
   ContestRanklistProblemStatusDto
 } from "./dto";
+import { RatingService } from "@/rating/rating.service";
 
 @Injectable()
 export class ContestService {
@@ -34,7 +37,10 @@ export class ContestService {
     @InjectRepository(ProblemEntity)
     private readonly problemRepository: Repository<ProblemEntity>,
     @InjectRepository(SubmissionEntity)
-    private readonly submissionRepository: Repository<SubmissionEntity>
+    private readonly submissionRepository: Repository<SubmissionEntity>,
+    @Inject(forwardRef(() => RatingService))
+    private readonly ratingService: RatingService,
+    private readonly localizedContentService: LocalizedContentService
   ) {}
 
   async findContestById(id: number): Promise<ContestEntity> {
@@ -90,12 +96,24 @@ export class ContestService {
     const result: ContestProblemMetaDto[] = [];
     for (const cp of contestProblems) {
       const problem = await cp.problem;
+
+      // Get the problem title from localized content (any locale)
+      const localizedTitle = await this.localizedContentService.getOfAnyLocale(
+        problem.id,
+        LocalizedContentType.ProblemTitle
+      );
+
+      // Use the localized title if available, otherwise fall back to "Problem A/B/C"
+      const problemTitle = localizedTitle
+        ? localizedTitle[1]
+        : `Problem ${String.fromCharCode(65 + cp.orderIndex)}`;
+
       result.push({
         contestProblemId: cp.id,
         orderIndex: cp.orderIndex,
         problemId: problem.id,
         problemDisplayId: problem.displayId,
-        problemTitle: `Problem ${String.fromCharCode(65 + cp.orderIndex)}`
+        problemTitle
       });
     }
 
@@ -556,5 +574,45 @@ export class ContestService {
       contestId,
       userId
     });
+  }
+
+  /**
+   * Calculate rating changes for a contest after it ends
+   * This should be called manually by an admin after the contest finishes
+   */
+  async calculateContestRatings(contest: ContestEntity): Promise<void> {
+    // Check if contest has ended
+    const now = new Date();
+    if (now < contest.endTime) {
+      throw new Error("Cannot calculate ratings for a contest that has not ended yet");
+    }
+
+    // Get contest ranklist
+    const ranklist = await this.getContestRanklist(contest.id);
+
+    if (ranklist.length === 0) {
+      return; // No participants, nothing to calculate
+    }
+
+    // Prepare rating calculation inputs
+    const participants = await Promise.all(
+      ranklist.map(async item => {
+        const user = await this.userRepository.findOneBy({ id: item.userId });
+        const contestParticipationCount = await this.ratingService.getUserContestParticipationCount(user.id);
+
+        return {
+          userId: user.id,
+          rank: item.rank,
+          oldRating: user.rating,
+          contestParticipationCount
+        };
+      })
+    );
+
+    // Calculate rating changes
+    const ratingChanges = await this.ratingService.calculateRatingChanges(contest, participants);
+
+    // Save rating changes and update user ratings
+    await this.ratingService.saveRatingChanges(contest, ratingChanges);
   }
 }

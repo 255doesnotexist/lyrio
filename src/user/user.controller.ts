@@ -3,11 +3,14 @@ import { ApiOperation, ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 import { CurrentUser } from "@/common/user.decorator";
 import { AuthService } from "@/auth/auth.service";
+import { AuthSessionService } from "@/auth/auth-session.service";
 import { ConfigService } from "@/config/config.service";
 import { SubmissionService } from "@/submission/submission.service";
 import { AuditLogObjectType, AuditService } from "@/audit/audit.service";
 import { AuthIpLocationService } from "@/auth/auth-ip-location.service";
 import { UserMigrationService } from "@/migration/user-migration.service";
+import { RatingService } from "@/rating/rating.service";
+import { ContestService } from "@/contest/contest.service";
 
 import { UserEntity } from "./user.entity";
 import { UserService } from "./user.service";
@@ -21,6 +24,12 @@ import {
   SetUserPrivilegesResponseDto,
   SetUserPrivilegesRequestDto,
   SetUserPrivilegesResponseError,
+  SetUserAdminRequestDto,
+  SetUserAdminResponseDto,
+  SetUserAdminResponseError,
+  BanUserRequestDto,
+  BanUserResponseDto,
+  BanUserResponseError,
   UpdateUserProfileRequestDto,
   UpdateUserProfileResponseDto,
   UpdateUserProfileResponseError,
@@ -52,7 +61,17 @@ import {
   UpdateUserSelfEmailResponseError,
   QueryAuditLogsRequestDto,
   QueryAuditLogsResponseDto,
-  QueryAuditLogsResponseError
+  QueryAuditLogsResponseError,
+  GetUserRatingHistoryRequestDto,
+  GetUserRatingHistoryResponseDto,
+  GetUserRatingHistoryResponseError,
+  RatingChangeDto,
+  BatchImportUsersRequestDto,
+  BatchImportUsersResponseDto,
+  BatchImportUsersResponseError,
+  ResetUserPasswordRequestDto,
+  ResetUserPasswordResponseDto,
+  ResetUserPasswordResponseError
 } from "./dto";
 
 @ApiTags("User")
@@ -61,13 +80,18 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    private readonly authSessionService: AuthSessionService,
     private readonly configService: ConfigService,
     private readonly userPrivilegeService: UserPrivilegeService,
     @Inject(forwardRef(() => SubmissionService))
     private readonly submissionService: SubmissionService,
     private readonly auditService: AuditService,
     private readonly authIpLocationService: AuthIpLocationService,
-    private readonly userMigrationService: UserMigrationService
+    private readonly userMigrationService: UserMigrationService,
+    @Inject(forwardRef(() => RatingService))
+    private readonly ratingService: RatingService,
+    @Inject(forwardRef(() => ContestService))
+    private readonly contestService: ContestService
   ) {}
 
   @Get("searchUser")
@@ -147,6 +171,224 @@ export class UserController {
 
     return {
       error
+    };
+  }
+
+  @Post("setUserAdmin")
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Set a user's admin status. Only admins can call this. Owner cannot be demoted."
+  })
+  async setUserAdmin(
+    @CurrentUser() currentUser: UserEntity,
+    @Body() request: SetUserAdminRequestDto
+  ): Promise<SetUserAdminResponseDto> {
+    if (!(currentUser && currentUser.isAdmin))
+      return {
+        error: SetUserAdminResponseError.PERMISSION_DENIED
+      };
+
+    const user = await this.userService.findUserById(request.userId);
+    if (!user)
+      return {
+        error: SetUserAdminResponseError.NO_SUCH_USER
+      };
+
+    // Cannot modify owner's admin status (user with ID 1)
+    if (user.id === 1)
+      return {
+        error: SetUserAdminResponseError.CANNOT_MODIFY_OWNER
+      };
+
+    const oldIsAdmin = user.isAdmin;
+    user.isAdmin = request.isAdmin;
+    await this.userService.updateUser(user);
+
+    await this.auditService.log("user.set_admin", AuditLogObjectType.User, request.userId, {
+      oldIsAdmin,
+      newIsAdmin: request.isAdmin
+    });
+
+    return {};
+  }
+
+  @Post("banUser")
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Ban or unban a user. Only admins can call this. Admins and owner cannot be banned."
+  })
+  async banUser(
+    @CurrentUser() currentUser: UserEntity,
+    @Body() request: BanUserRequestDto
+  ): Promise<BanUserResponseDto> {
+    if (!(currentUser && currentUser.isAdmin))
+      return {
+        error: BanUserResponseError.PERMISSION_DENIED
+      };
+
+    const user = await this.userService.findUserById(request.userId);
+    if (!user)
+      return {
+        error: BanUserResponseError.NO_SUCH_USER
+      };
+
+    // Cannot ban owner (ID 1) or any admin
+    if (user.id === 1 || user.isAdmin)
+      return {
+        error: BanUserResponseError.CANNOT_BAN_ADMIN
+      };
+
+    const oldIsBanned = user.isBanned;
+    const oldBanReason = user.banReason;
+    user.isBanned = request.isBanned;
+    user.banReason = request.isBanned ? request.banReason || null : null;
+    await this.userService.updateUser(user);
+
+    // Revoke all sessions when banning a user
+    if (request.isBanned && !oldIsBanned) {
+      await this.authSessionService.revokeAllSessionsExcept(request.userId, null);
+    }
+
+    await this.auditService.log("user.ban", AuditLogObjectType.User, request.userId, {
+      oldIsBanned,
+      oldBanReason,
+      newIsBanned: request.isBanned,
+      newBanReason: user.banReason
+    });
+
+    return {};
+  }
+
+  @Post("batchImportUsers")
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Batch import users from CSV. Only admins can call this. CSV format: username,email,password (one user per line, no header)"
+  })
+  async batchImportUsers(
+    @CurrentUser() currentUser: UserEntity,
+    @Body() request: BatchImportUsersRequestDto
+  ): Promise<BatchImportUsersResponseDto> {
+    if (!(currentUser && currentUser.isAdmin))
+      return {
+        error: BatchImportUsersResponseError.PERMISSION_DENIED
+      };
+
+    // Parse CSV content
+    const lines = request.csvContent.trim().split("\n").filter(line => line.trim());
+    const importedUsers: any[] = [];
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const line of lines) {
+      const parts = line.split(",").map(p => p.trim());
+      if (parts.length !== 3) {
+        importedUsers.push({
+          username: line,
+          email: "",
+          success: false,
+          error: "Invalid CSV format: expected 3 columns (username,email,password)"
+        });
+        failureCount++;
+        continue;
+      }
+
+      const [username, email, password] = parts;
+
+      try {
+        // Check if user exists
+        const existingUser = await this.userService.findUserByUsername(username);
+        if (existingUser) {
+          importedUsers.push({
+            username,
+            email,
+            success: false,
+            error: "Username already exists"
+          });
+          failureCount++;
+          continue;
+        }
+
+        const existingEmail = await this.userService.findUserByEmail(email);
+        if (existingEmail) {
+          importedUsers.push({
+            username,
+            email,
+            success: false,
+            error: "Email already exists"
+          });
+          failureCount++;
+          continue;
+        }
+
+        // Create user
+        const user = await this.userService.createUser(
+          username,
+          email,
+          username, // nickname = username
+          password,
+          request.requirePasswordChange
+        );
+
+        importedUsers.push({
+          username,
+          email,
+          success: true
+        });
+        successCount++;
+
+        await this.auditService.log("user.batch_import", AuditLogObjectType.User, user.id);
+      } catch (error) {
+        importedUsers.push({
+          username,
+          email,
+          success: false,
+          error: error.message || "Unknown error"
+        });
+        failureCount++;
+      }
+    }
+
+    return {
+      importedUsers,
+      successCount,
+      failureCount
+    };
+  }
+
+  @Post("resetUserPassword")
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Reset a user's password. Only admins can call this. If newPassword is not provided, a random password will be generated."
+  })
+  async resetUserPassword(
+    @CurrentUser() currentUser: UserEntity,
+    @Body() request: ResetUserPasswordRequestDto
+  ): Promise<ResetUserPasswordResponseDto> {
+    if (!(currentUser && currentUser.isAdmin))
+      return {
+        error: ResetUserPasswordResponseError.PERMISSION_DENIED
+      };
+
+    const user = await this.userService.findUserById(request.userId);
+    if (!user)
+      return {
+        error: ResetUserPasswordResponseError.NO_SUCH_USER
+      };
+
+    const newPassword = request.newPassword || Math.random().toString(36).slice(-10);
+
+    const userAuth = await this.authService.findUserAuthByUserId(user.id);
+    await this.authService.changePassword(userAuth, newPassword);
+
+    if (request.requirePasswordChange !== undefined) {
+      user.requirePasswordChange = request.requirePasswordChange;
+      await this.userService.updateUser(user);
+    }
+
+    await this.auditService.log("user.reset_password", AuditLogObjectType.User, request.userId);
+
+    return {
+      generatedPassword: request.newPassword ? undefined : newPassword
     };
   }
 
@@ -577,6 +819,12 @@ export class UserController {
       await this.userMigrationService.changeOldPassword(userMigrationInfo, request.password);
     }
 
+    // Clear requirePasswordChange flag after successful password change
+    if (user.requirePasswordChange) {
+      user.requirePasswordChange = false;
+      await this.userService.updateUser(user);
+    }
+
     if (request.userId === user.id) {
       await this.auditService.log("auth.change_password");
     } else {
@@ -614,6 +862,42 @@ export class UserController {
     if (!error) return {};
     return {
       error
+    };
+  }
+
+  @Post("getUserRatingHistory")
+  @ApiOperation({ summary: "Get user's rating history from contests." })
+  async getUserRatingHistory(@Body() request: GetUserRatingHistoryRequestDto): Promise<GetUserRatingHistoryResponseDto> {
+    // Get user
+    const user = await this.userService.findUserById(request.userId);
+    if (!user) {
+      return {
+        error: GetUserRatingHistoryResponseError.NO_SUCH_USER
+      };
+    }
+
+    // Get rating history
+    const ratingChanges = await this.ratingService.getUserRatingHistory(request.userId);
+
+    // Convert to DTO format with contest titles
+    const ratingHistory: RatingChangeDto[] = await Promise.all(
+      ratingChanges.map(async change => {
+        const contest = await this.contestService.findContestById(change.contestId);
+        return {
+          contestId: change.contestId,
+          contestTitle: contest ? contest.title : "Unknown Contest",
+          time: change.time,
+          oldRating: change.oldRating,
+          newRating: change.newRating,
+          ratingChange: change.ratingChange,
+          rank: change.rank,
+          participantCount: change.participantCount
+        };
+      })
+    );
+
+    return {
+      ratingHistory
     };
   }
 }

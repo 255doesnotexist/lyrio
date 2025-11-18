@@ -60,6 +60,10 @@ export class AuthService {
     try {
       let user: UserEntity;
       await this.connection.transaction("READ COMMITTED", async transactionalEntityManager => {
+        // Check if this is the first user (owner)
+        const userCount = await transactionalEntityManager.count(UserEntity);
+        const isFirstUser = userCount === 0;
+
         user = new UserEntity();
         user.username = username;
         user.email = email;
@@ -67,7 +71,8 @@ export class AuthService {
         user.nickname = "";
         user.bio = "";
         user.avatarInfo = "gravatar:";
-        user.isAdmin = false;
+        user.isAdmin = isFirstUser; // First user is admin
+        user.isOwner = isFirstUser; // First user is owner
         user.submissionCount = 0;
         user.acceptedProblemCount = 0;
         user.rating = 0;

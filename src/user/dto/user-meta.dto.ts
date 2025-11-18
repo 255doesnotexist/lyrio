@@ -25,6 +25,15 @@ export class UserMetaDto {
   isAdmin: boolean;
 
   @ApiProperty()
+  isOwner: boolean;
+
+  @ApiProperty()
+  isBanned: boolean;
+
+  @ApiProperty()
+  banReason: string;
+
+  @ApiProperty()
   acceptedProblemCount: number;
 
   @ApiProperty()

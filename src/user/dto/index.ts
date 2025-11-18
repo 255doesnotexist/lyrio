@@ -9,6 +9,12 @@ export * from "./get-user-meta-response.dto";
 export * from "./set-user-privileges-request.dto";
 export * from "./set-user-privileges-response.dto";
 
+export * from "./set-user-admin-request.dto";
+export * from "./set-user-admin-response.dto";
+
+export * from "./ban-user-request.dto";
+export * from "./ban-user-response.dto";
+
 export * from "./update-user-profile-request.dto";
 export * from "./update-user-profile-response.dto";
 
@@ -41,3 +47,12 @@ export * from "./update-user-self-email-response.dto";
 
 export * from "./query-audit-logs-request.dto";
 export * from "./query-audit-logs-response.dto";
+
+export * from "./get-user-rating-history-request.dto";
+export * from "./get-user-rating-history-response.dto";
+
+export * from "./batch-import-users-request.dto";
+export * from "./batch-import-users-response.dto";
+
+export * from "./reset-user-password-request.dto";
+export * from "./reset-user-password-response.dto";
