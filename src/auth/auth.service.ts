@@ -75,7 +75,7 @@ export class AuthService {
         user.isOwner = isFirstUser; // First user is owner
         user.submissionCount = 0;
         user.acceptedProblemCount = 0;
-        user.rating = 0;
+        user.rating = 1500; // Default rating for new users (Codeforces Legacy)
         user.registrationTime = new Date();
         await transactionalEntityManager.save(user);
 

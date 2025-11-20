@@ -393,7 +393,7 @@ export class UserService {
         user.isAdmin = false;
         user.submissionCount = 0;
         user.acceptedProblemCount = 0;
-        user.rating = 0;
+        user.rating = 1500; // Default rating for new users (Codeforces Legacy)
         user.requirePasswordChange = requirePasswordChange;
         user.registrationTime = new Date();
         await transactionalEntityManager.save(user);

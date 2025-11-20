@@ -56,7 +56,7 @@ export class UserEntity {
   @Column({ type: "integer" })
   submissionCount: number;
 
-  @Column({ type: "integer" })
+  @Column({ type: "integer", default: 1500 })
   rating: number;
 
   @Column({ type: "boolean" })

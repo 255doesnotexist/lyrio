@@ -110,47 +110,20 @@ export class RatingService {
       deltas.push((needRating - participants[i].oldRating) / 2);
     }
 
-    // First adjustment: make average change close to 0 but below 0
+    // Zero-sum correction: make average change close to 0 with slight deflation
+    // This follows the Codeforces Legacy algorithm
     const sumDelta = deltas.reduce((sum, d) => sum + d, 0);
-    let inc = -sumDelta / n - 1;
+    const inc = -sumDelta / n - 1;
 
-    // Second adjustment: make average change for top sqrt(n) participants equal to 0
-    // But limit inc to [-10, 0]
-    const s = Math.min(n, Math.ceil(Math.pow(n, 0.5) * 4));
-    const topDeltas = deltas.slice(0, s);
-    const topAvg = (topDeltas.reduce((sum, d) => sum + d, 0) + inc * s) / s;
-
-    if (topAvg > 0) {
-      const inc2 = -topAvg;
-      inc += Math.max(-10, Math.min(0, inc2));
-    }
-
-    // Apply adjustments
+    // Apply correction to all deltas
     const finalDeltas = deltas.map(d => Math.round(d + inc));
 
-    // Handle new users (first 6 contests)
+    // Build results (no special handling for new users in Legacy version)
     const results: RatingCalculationResult[] = [];
-    const bonuses = [500, 350, 250, 150, 100, 50]; // Sum = 1400
-
     for (let i = 0; i < n; i++) {
       const participant = participants[i];
-      let delta = finalDeltas[i];
-      let newRating: number;
-
-      if (participant.contestParticipationCount < 6) {
-        // New user bonus system
-        // Display rating as if they had 1400 + sum of previous bonuses
-        // But calculate as if starting from 0
-        const contestIndex = participant.contestParticipationCount;
-        const previousBonusSum = bonuses.slice(0, contestIndex).reduce((sum, b) => sum + b, 0);
-
-        // Calculate delta as if rating was (1400 + previousBonusSum)
-        // Then add current bonus
-        const currentBonus = bonuses[contestIndex];
-        newRating = participant.oldRating + delta + currentBonus;
-      } else {
-        newRating = participant.oldRating + delta;
-      }
+      const delta = finalDeltas[i];
+      let newRating = participant.oldRating + delta;
 
       // Ensure rating doesn't go below 0
       newRating = Math.max(0, newRating);
@@ -159,7 +132,7 @@ export class RatingService {
         userId: participant.userId,
         oldRating: participant.oldRating,
         newRating: newRating,
-        ratingChange: newRating - participant.oldRating,
+        ratingChange: delta,
         rank: participant.rank
       });
     }
@@ -188,6 +161,7 @@ export class RatingService {
 
   /**
    * Save rating changes to database and update user ratings
+   * If rating changes already exist for this contest+user, update them instead of creating new ones
    */
   async saveRatingChanges(
     contest: ContestEntity,
@@ -197,18 +171,39 @@ export class RatingService {
       const time = new Date();
 
       for (const change of ratingChanges) {
-        // Create rating change record
-        const ratingChangeEntity = new RatingChangeEntity();
-        ratingChangeEntity.userId = change.userId;
-        ratingChangeEntity.contestId = contest.id;
-        ratingChangeEntity.time = time;
-        ratingChangeEntity.oldRating = change.oldRating;
-        ratingChangeEntity.newRating = change.newRating;
-        ratingChangeEntity.ratingChange = change.ratingChange;
-        ratingChangeEntity.rank = change.rank;
-        ratingChangeEntity.participantCount = ratingChanges.length;
+        // Check if rating change already exists for this contest and user
+        const existingChange = await manager.findOne(RatingChangeEntity, {
+          where: { userId: change.userId, contestId: contest.id }
+        });
 
-        await manager.save(RatingChangeEntity, ratingChangeEntity);
+        if (existingChange) {
+          // UPDATE existing rating change record
+          await manager.update(
+            RatingChangeEntity,
+            { userId: change.userId, contestId: contest.id },
+            {
+              time: time,
+              oldRating: change.oldRating,
+              newRating: change.newRating,
+              ratingChange: change.ratingChange,
+              rank: change.rank,
+              participantCount: ratingChanges.length
+            }
+          );
+        } else {
+          // CREATE new rating change record
+          const ratingChangeEntity = new RatingChangeEntity();
+          ratingChangeEntity.userId = change.userId;
+          ratingChangeEntity.contestId = contest.id;
+          ratingChangeEntity.time = time;
+          ratingChangeEntity.oldRating = change.oldRating;
+          ratingChangeEntity.newRating = change.newRating;
+          ratingChangeEntity.ratingChange = change.ratingChange;
+          ratingChangeEntity.rank = change.rank;
+          ratingChangeEntity.participantCount = ratingChanges.length;
+
+          await manager.save(RatingChangeEntity, ratingChangeEntity);
+        }
 
         // Update user rating
         await manager.update(UserEntity, { id: change.userId }, { rating: change.newRating });
