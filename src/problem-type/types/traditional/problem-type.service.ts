@@ -28,7 +28,10 @@ export class ProblemTypeTraditionalService
       SubmissionTestcaseResultTraditional
     >
 {
-  constructor(private configService: ConfigService, private codeLanguageService: CodeLanguageService) {}
+  constructor(
+    private configService: ConfigService,
+    private codeLanguageService: CodeLanguageService
+  ) {}
 
   getDefaultJudgeInfo(): ProblemJudgeInfoTraditional {
     return {
@@ -112,7 +115,6 @@ export class ProblemTypeTraditionalService
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   async getCodeLanguageAndAnswerSizeFromSubmissionContentAndFile(submissionContent: SubmissionContentTraditional) {
     return {
       language: submissionContent.language,
@@ -123,7 +125,6 @@ export class ProblemTypeTraditionalService
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   getTimeAndMemoryUsedFromFinishedSubmissionProgress(
     submissionProgress: SubmissionProgress<SubmissionTestcaseResultTraditional>
   ) {

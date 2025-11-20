@@ -250,7 +250,6 @@ export class JudgeGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    /* eslint-disable no-await-in-loop */
     while (await this.checkConnection(client)) {
       const task = await this.judgeQueueService.consumeTask();
       if (!task) continue;
@@ -274,7 +273,6 @@ export class JudgeGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       return;
     }
-    /* eslint-enable no-await-in-loop */
   }
 
   @SubscribeMessage("progress")

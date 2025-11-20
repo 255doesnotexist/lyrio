@@ -33,7 +33,6 @@ export interface QueuedJudgeTaskMeta extends JudgeTaskMeta {
   enqueueTime: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface JudgeTaskExtraInfo {}
 
 // Extra info is also send to judge client while ONLY meta is used to identity the task
@@ -66,7 +65,10 @@ export class JudgeQueueService {
   private readonly taskServices: Map<JudgeTaskType, JudgeTaskService<JudgeTaskProgress, JudgeTaskExtraInfo>> =
     new Map();
 
-  constructor(private readonly redisService: RedisService, private readonly metricsService: MetricsService) {
+  constructor(
+    private readonly redisService: RedisService,
+    private readonly metricsService: MetricsService
+  ) {
     this.redisForPush = this.redisService.getClient();
     this.redisForConsume = this.redisService.getClient();
   }

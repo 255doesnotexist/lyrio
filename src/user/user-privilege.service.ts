@@ -52,7 +52,7 @@ export class UserPrivilegeService {
         const userPrivilege = new UserPrivilegeEntity();
         userPrivilege.privilegeType = newPrivilegeType;
         userPrivilege.userId = userId;
-        await transactionalEntityManager.save(userPrivilege); // eslint-disable-line no-await-in-loop
+        await transactionalEntityManager.save(userPrivilege);
       }
     });
 

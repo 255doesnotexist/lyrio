@@ -1,10 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository, InjectConnection } from "@nestjs/typeorm";
+
 import { Repository, Connection } from "typeorm";
 
-import { RatingChangeEntity } from "./rating-change.entity";
 import { UserEntity } from "@/user/user.entity";
 import { ContestEntity } from "@/contest/contest.entity";
+
+import { RatingChangeEntity } from "./rating-change.entity";
 
 interface RatingCalculationInput {
   userId: number;
@@ -45,7 +47,7 @@ export class RatingService {
    * P(A beats B) = 1 / (1 + 10^((ratingB - ratingA) / 400))
    */
   private getWinProbability(ratingA: number, ratingB: number): number {
-    return 1.0 / (1.0 + Math.pow(10, (ratingB - ratingA) / 400.0));
+    return 1.0 / (1.0 + 10 ** ((ratingB - ratingA) / 400.0));
   }
 
   /**
@@ -131,7 +133,7 @@ export class RatingService {
       results.push({
         userId: participant.userId,
         oldRating: participant.oldRating,
-        newRating: newRating,
+        newRating,
         ratingChange: delta,
         rank: participant.rank
       });
@@ -163,10 +165,7 @@ export class RatingService {
    * Save rating changes to database and update user ratings
    * If rating changes already exist for this contest+user, update them instead of creating new ones
    */
-  async saveRatingChanges(
-    contest: ContestEntity,
-    ratingChanges: RatingCalculationResult[]
-  ): Promise<void> {
+  async saveRatingChanges(contest: ContestEntity, ratingChanges: RatingCalculationResult[]): Promise<void> {
     await this.connection.transaction(async manager => {
       const time = new Date();
 
@@ -182,7 +181,7 @@ export class RatingService {
             RatingChangeEntity,
             { userId: change.userId, contestId: contest.id },
             {
-              time: time,
+              time,
               oldRating: change.oldRating,
               newRating: change.newRating,
               ratingChange: change.ratingChange,
@@ -224,10 +223,7 @@ export class RatingService {
    * Delete rating changes for a contest and all contests after it (ordered by end time)
    * This is used when recalculating ratings after rejudging
    */
-  async deleteRatingChangesFromContestOnwards(
-    contestId: number,
-    contestEndTime: Date
-  ): Promise<number[]> {
+  async deleteRatingChangesFromContestOnwards(contestId: number, contestEndTime: Date): Promise<number[]> {
     return await this.connection.transaction(async manager => {
       // Find all contests that ended at or after this contest
       const contests = await manager

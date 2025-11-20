@@ -1,5 +1,3 @@
-/* eslint-disable no-throw-literal */
-
 export function restrictProperties<T>(object: T, whiteListedProperties: (keyof T)[]): void {
   if (!object) return;
 

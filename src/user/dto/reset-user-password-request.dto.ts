@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+
 import { IsInt, IsString, IsOptional, IsBoolean } from "class-validator";
 
 export class ResetUserPasswordRequestDto {

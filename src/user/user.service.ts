@@ -420,7 +420,7 @@ export class UserService {
 
       return user;
     } catch (e) {
-      // Re-throw to let caller handle duplicate username/email errors
+      this.logger.error(`Failed to create user ${username}: ${e.message}`, e.stack);
       throw e;
     }
   }

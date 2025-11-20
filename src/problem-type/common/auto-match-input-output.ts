@@ -28,7 +28,7 @@ export function autoMatchInputToOutput(testData: ProblemFileEntity[], outputOpti
           const firstNonEqualIndex = [...Array(Math.max(numbersA.length, numbersB.length)).keys()].findIndex(
             i => numbersA[i] !== numbersB[i]
           );
-          // eslint-disable-next-line no-nested-ternary
+
           return firstNonEqualIndex === -1
             ? inputA.filename < inputB.filename
               ? -1
@@ -59,7 +59,7 @@ export function autoMatchOutputToInput(testData: ProblemFileEntity[], inputOptio
           const firstNonEqualIndex = [...Array(Math.max(numbersA.length, numbersB.length)).keys()].findIndex(
             i => numbersA[i] !== numbersB[i]
           );
-          // eslint-disable-next-line no-nested-ternary
+
           return firstNonEqualIndex === -1
             ? outputA.filename < outputB.filename
               ? -1

@@ -1,10 +1,12 @@
 import { Module, forwardRef } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
+import { UserEntity } from "@/user/user.entity";
+
+import { ContestModule } from "@/contest/contest.module";
+
 import { RatingService } from "./rating.service";
 import { RatingChangeEntity } from "./rating-change.entity";
-import { UserEntity } from "@/user/user.entity";
-import { ContestModule } from "@/contest/contest.module";
 
 @Module({
   imports: [TypeOrmModule.forFeature([RatingChangeEntity, UserEntity]), forwardRef(() => ContestModule)],

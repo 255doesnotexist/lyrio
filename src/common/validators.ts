@@ -1,8 +1,6 @@
 import { registerDecorator, ValidationOptions } from "class-validator";
 import emojiRegex from "emoji-regex";
 
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-
 export function If<T>(callback: (value: T) => boolean, validationOptions?: ValidationOptions) {
   return (object: unknown, propertyName: string) => {
     registerDecorator({

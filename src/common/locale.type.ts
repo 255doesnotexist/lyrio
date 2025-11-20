@@ -1,5 +1,3 @@
-/* eslint-disable camelcase */
-
 export enum Locale {
   zh_CN = "zh_CN",
   pl_PL = "pl_PL",

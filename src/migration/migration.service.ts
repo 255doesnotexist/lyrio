@@ -86,7 +86,6 @@ export class MigrationService {
     const { count } = (await this.oldDatabase.query(`SELECT COUNT(*) AS \`count\` FROM \`${tableName}\``))[0];
     let processedCount = 0;
 
-    /* eslint-disable no-await-in-loop */
     for (let i = 0; i < count; i += pageSize) {
       const results: T[] = await this.oldDatabase.query(
         `SELECT * FROM \`${tableName}\` ORDER BY \`${orderByColumn}\` LIMIT ${i}, ${pageSize}`
@@ -102,7 +101,6 @@ export class MigrationService {
       processedCount += resultsLength;
       Logger.log(`Processing table "${tableName}" ${processedCount}/${count}`);
     }
-    /* eslint-enable no-await-in-loop */
 
     Logger.log(`Finished processing table "${tableName}"`);
   }

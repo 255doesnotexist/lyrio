@@ -1,7 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 
-import { IsString, MaxLength, IsEnum, IsBoolean, IsInt, IsDateString, IsArray, ValidateNested, IsOptional } from "class-validator";
-import { Type } from "class-transformer";
+import { IsString, MaxLength, IsEnum, IsBoolean, IsInt, IsDateString, IsArray, IsOptional } from "class-validator";
 
 import { ContestType } from "../contest-type.enum";
 

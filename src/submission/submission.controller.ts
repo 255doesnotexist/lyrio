@@ -71,21 +71,21 @@ export class SubmissionController {
     private readonly contestService: ContestService
   ) {}
 
-  private hideTestCaseScores(result: any, originalStatus: SubmissionStatus, isAdmin: boolean): any {
+  private hideTestCaseScores(result: unknown, originalStatus: SubmissionStatus, isAdmin: boolean): unknown {
     // Don't hide if status is CompilationError or RuntimeError
     if (originalStatus === SubmissionStatus.CompilationError || originalStatus === SubmissionStatus.RuntimeError) {
       return result;
     }
 
     // Deep clone and hide scores
-    const hiddenResult = JSON.parse(JSON.stringify(result));
+    const hiddenResult = JSON.parse(JSON.stringify(result)) as Record<string, unknown>;
 
-    const hideTestCase = (testcase: any) => {
+    const hideTestCase = (testcase: Record<string, unknown>): Record<string, unknown> => {
       if (isAdmin) {
         // Admin can see real status with asterisk marker
         return {
           ...testcase,
-          status: testcase.status ? testcase.status + "*" : "Hidden*",
+          status: testcase.status ? `${testcase.status}*` : "Hidden*",
           isHiddenForUsers: true
         };
       } else {
@@ -99,22 +99,27 @@ export class SubmissionController {
     };
 
     // Hide samples
-    if (hiddenResult.samples) {
-      hiddenResult.samples = hiddenResult.samples.map(hideTestCase);
+    if (Array.isArray(hiddenResult.samples)) {
+      hiddenResult.samples = (hiddenResult.samples as Record<string, unknown>[]).map(hideTestCase);
     }
 
     // Hide testcases
-    if (hiddenResult.testcases) {
-      hiddenResult.testcases = hiddenResult.testcases.map(hideTestCase);
+    if (Array.isArray(hiddenResult.testcases)) {
+      hiddenResult.testcases = (hiddenResult.testcases as Record<string, unknown>[]).map(hideTestCase);
     }
 
     // Hide subtasks
-    if (hiddenResult.subtasks) {
-      hiddenResult.subtasks = hiddenResult.subtasks.map(subtask => ({
-        ...subtask,
-        score: isAdmin ? subtask.score : null,
-        testcases: subtask.testcases.map(hideTestCase)
-      }));
+    if (Array.isArray(hiddenResult.subtasks)) {
+      hiddenResult.subtasks = (hiddenResult.subtasks as Record<string, unknown>[]).map(subtask => {
+        const typedSubtask = subtask as Record<string, unknown>;
+        return {
+          ...typedSubtask,
+          score: isAdmin ? typedSubtask.score : null,
+          testcases: Array.isArray(typedSubtask.testcases)
+            ? (typedSubtask.testcases as Record<string, unknown>[]).map(hideTestCase)
+            : []
+        };
+      });
     }
 
     return hiddenResult;
@@ -148,7 +153,10 @@ export class SubmissionController {
           const isProblemInContest = await this.contestService.isProblemInContest(request.contestId, problem.id);
           if (isProblemInContest) {
             // Check if user is registered for the contest
-            const isRegistered = await this.contestService.isUserRegisteredForContest(request.contestId, currentUser.id);
+            const isRegistered = await this.contestService.isUserRegisteredForContest(
+              request.contestId,
+              currentUser.id
+            );
             if (isRegistered) {
               hasContestAccess = true;
             }
@@ -157,7 +165,10 @@ export class SubmissionController {
       }
 
       // If not submitting through contest or doesn't have contest access, check normal problem permissions
-      if (!hasContestAccess && !(await this.problemService.userHasPermission(currentUser, problem, ProblemPermissionType.View)))
+      if (
+        !hasContestAccess &&
+        !(await this.problemService.userHasPermission(currentUser, problem, ProblemPermissionType.View))
+      )
         return {
           error: SubmitResponseError.PERMISSION_DENIED
         };
@@ -282,7 +293,7 @@ export class SubmissionController {
           codeLanguage: submission.codeLanguage,
           answerSize: submission.answerSize,
           score: shouldHideScore ? null : submission.score,
-          status: shouldHideScore ? ("Hidden" as any) : submission.status,
+          status: (shouldHideScore ? SubmissionStatus.Hidden : submission.status) as SubmissionStatus,
           submitTime: submission.submitTime,
           problem: await this.problemService.getProblemMeta(problems[i]),
           problemTitle: await this.problemService.getProblemLocalizedTitle(problems[i], titleLocale),
@@ -431,7 +442,7 @@ export class SubmissionController {
         codeLanguage: submission.codeLanguage,
         answerSize: submission.answerSize,
         score: shouldHideScore && !isAdmin ? null : submission.score,
-        status: shouldHideScore && !isAdmin ? ("Hidden" as any) : submission.status,
+        status: (shouldHideScore && !isAdmin ? SubmissionStatus.Hidden : submission.status) as SubmissionStatus,
         submitTime: submission.submitTime,
         problem: await this.problemService.getProblemMeta(problem),
         problemTitle: await this.problemService.getProblemLocalizedTitle(problem, titleLocale),

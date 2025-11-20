@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { isEmail } from "class-validator";
 import randomstring from "randomstring";
 import * as bcrypt from "bcrypt";

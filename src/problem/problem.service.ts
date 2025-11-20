@@ -393,7 +393,6 @@ export class ProblemService {
       await transactionalEntityManager.save(problemSample);
 
       for (const localizedContent of statement.localizedContents) {
-        // eslint-disable-next-line no-await-in-loop
         await this.localizedContentService.createOrUpdate(
           problem.id,
           LocalizedContentType.ProblemTitle,
@@ -401,7 +400,6 @@ export class ProblemService {
           localizedContent.title,
           transactionalEntityManager
         );
-        // eslint-disable-next-line no-await-in-loop
         await this.localizedContentService.createOrUpdate(
           problem.id,
           LocalizedContentType.ProblemContent,
@@ -410,7 +408,6 @@ export class ProblemService {
           transactionalEntityManager
         );
       }
-      /* eslint-enable no-await-in-loop */
 
       await this.setProblemTags(problem, tags, transactionalEntityManager);
     });
@@ -434,14 +431,12 @@ export class ProblemService {
 
       const deletingLocales = problem.locales.filter(locale => !newLocales.includes(locale));
       for (const deletingLocale of deletingLocales) {
-        // eslint-disable-next-line no-await-in-loop
         await this.localizedContentService.delete(
           problem.id,
           LocalizedContentType.ProblemTitle,
           deletingLocale,
           transactionalEntityManager
         );
-        // eslint-disable-next-line no-await-in-loop
         await this.localizedContentService.delete(
           problem.id,
           LocalizedContentType.ProblemContent,
@@ -453,7 +448,6 @@ export class ProblemService {
       problem.locales = newLocales;
 
       for (const localizedContent of request.localizedContents) {
-        // eslint-disable-next-line no-await-in-loop
         await this.localizedContentService.createOrUpdate(
           problem.id,
           LocalizedContentType.ProblemTitle,
@@ -461,7 +455,6 @@ export class ProblemService {
           localizedContent.title,
           transactionalEntityManager
         );
-        // eslint-disable-next-line no-await-in-loop
         await this.localizedContentService.createOrUpdate(
           problem.id,
           LocalizedContentType.ProblemContent,
@@ -915,7 +908,6 @@ export class ProblemService {
       await transactionalEntityManager.save(problemTag);
 
       for (const [locale, name] of localizedNames) {
-        // eslint-disable-next-line no-await-in-loop
         await this.localizedContentService.createOrUpdate(
           problemTag.id,
           LocalizedContentType.ProblemTagName,
@@ -946,7 +938,6 @@ export class ProblemService {
         transactionalEntityManager
       );
       for (const [locale, name] of localizedNames) {
-        // eslint-disable-next-line no-await-in-loop
         await this.localizedContentService.createOrUpdate(
           problemTag.id,
           LocalizedContentType.ProblemTagName,

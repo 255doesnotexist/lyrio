@@ -414,7 +414,7 @@ async function parseJudgeInfo(
         scoringType: getScoringType(subtask.type),
         points: subtask.score,
         testcases: subtask.cases.map(caseId => {
-          type Testcase = typeof judgeInfo["subtasks"][0]["testcases"][0];
+          type Testcase = (typeof judgeInfo)["subtasks"][0]["testcases"][0];
           const testcase: Partial<Testcase> = {};
           if (typeof oldConfig.inputFile === "string")
             (testcase as { inputFile: string }).inputFile = oldConfig.inputFile.replace("#", String(caseId));
@@ -624,7 +624,7 @@ export const migrationProblem: MigrationInterface = {
           }
 
           if (md5) {
-            const tempDirectory = tempy.directory({ prefix: `problem_additional_file_${oldProblem.id}_` });
+            const tempDirectory = tempy.temporaryDirectory({ prefix: `problem_additional_file_${oldProblem.id}_` });
             try {
               const additionalFile = path.join(config.uploads, "additional_file", md5);
 

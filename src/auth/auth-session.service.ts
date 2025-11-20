@@ -74,7 +74,7 @@ export class AuthSessionService {
       const [userId, sessionId] = this.decodeSessionKey(sessionKey);
       await this.revokeSession(userId, sessionId);
     } catch (e) {
-      // Do nothing if we can't decide the session key.
+      this.logger.warn(`Failed to end session: ${e.message}`);
     }
   }
 
@@ -96,6 +96,7 @@ export class AuthSessionService {
 
       return [sessionId, user];
     } catch (e) {
+      this.logger.warn(`Failed to access session: ${e.message}`);
       return [null, null];
     }
   }

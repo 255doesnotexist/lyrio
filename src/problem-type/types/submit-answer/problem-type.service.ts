@@ -27,7 +27,10 @@ export class ProblemTypeSubmitAnswerService
       SubmissionTestcaseResultSubmitAnswer
     >
 {
-  constructor(private configService: ConfigService, private codeLanguageService: CodeLanguageService) {}
+  constructor(
+    private configService: ConfigService,
+    private codeLanguageService: CodeLanguageService
+  ) {}
 
   getDefaultJudgeInfo(): ProblemJudgeInfoSubmitAnswer {
     return {
@@ -87,8 +90,6 @@ export class ProblemTypeSubmitAnswerService
     return [];
   }
 
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getCodeLanguageAndAnswerSizeFromSubmissionContentAndFile(
     submissionContent: SubmissionContentSubmitAnswer,
     file: FileEntity
@@ -100,7 +101,6 @@ export class ProblemTypeSubmitAnswerService
   }
 
   getTimeAndMemoryUsedFromFinishedSubmissionProgress(
-    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     submissionProgress: SubmissionProgress<SubmissionTestcaseResultSubmitAnswer>
   ) {

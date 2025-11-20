@@ -15,10 +15,14 @@ const sharedModules = [
     useFactory: (configService: ConfigService) => ({
       secretKey: configService.config.security.recaptcha.secretKey,
       response: (req: RequestWithSession) => String(req.headers["x-recaptcha-token"]),
-      skipIf: async (req: RequestWithSession) =>
-        !configService.config.preference.security.recaptchaEnabled ||
-        (String(req.headers["x-recaptcha-token"]).toLowerCase() === "skip" &&
-          (await req.session?.userCanSkipRecaptcha?.()))
+      skipIf: async (req: unknown) => {
+        const request = req as RequestWithSession;
+        return (
+          !configService.config.preference.security.recaptchaEnabled ||
+          (String(request.headers["x-recaptcha-token"]).toLowerCase() === "skip" &&
+            (await request.session?.userCanSkipRecaptcha?.()))
+        );
+      }
     }),
     inject: [ConfigService]
   })

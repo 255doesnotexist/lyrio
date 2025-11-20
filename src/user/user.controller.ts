@@ -69,6 +69,7 @@ import {
   BatchImportUsersRequestDto,
   BatchImportUsersResponseDto,
   BatchImportUsersResponseError,
+  ImportedUserInfo,
   ResetUserPasswordRequestDto,
   ResetUserPasswordResponseDto,
   ResetUserPasswordResponseError
@@ -272,7 +273,8 @@ export class UserController {
   @Post("batchImportUsers")
   @ApiBearerAuth()
   @ApiOperation({
-    summary: "Batch import users from CSV. Only admins can call this. CSV format: username,email,password (one user per line, no header)"
+    summary:
+      "Batch import users from CSV. Only admins can call this. CSV format: username,email,password (one user per line, no header)"
   })
   async batchImportUsers(
     @CurrentUser() currentUser: UserEntity,
@@ -284,8 +286,11 @@ export class UserController {
       };
 
     // Parse CSV content
-    const lines = request.csvContent.trim().split("\n").filter(line => line.trim());
-    const importedUsers: any[] = [];
+    const lines = request.csvContent
+      .trim()
+      .split("\n")
+      .filter(line => line.trim());
+    const importedUsers: ImportedUserInfo[] = [];
     let successCount = 0;
     let failureCount = 0;
 
@@ -368,7 +373,8 @@ export class UserController {
   @Post("resetUserPassword")
   @ApiBearerAuth()
   @ApiOperation({
-    summary: "Reset a user's password. Only admins can call this. If newPassword is not provided, a random password will be generated."
+    summary:
+      "Reset a user's password. Only admins can call this. If newPassword is not provided, a random password will be generated."
   })
   async resetUserPassword(
     @CurrentUser() currentUser: UserEntity,
@@ -898,7 +904,9 @@ export class UserController {
 
   @Post("getUserRatingHistory")
   @ApiOperation({ summary: "Get user's rating history from contests." })
-  async getUserRatingHistory(@Body() request: GetUserRatingHistoryRequestDto): Promise<GetUserRatingHistoryResponseDto> {
+  async getUserRatingHistory(
+    @Body() request: GetUserRatingHistoryRequestDto
+  ): Promise<GetUserRatingHistoryResponseDto> {
     // Get user
     const user = await this.userService.findUserById(request.userId);
     if (!user) {

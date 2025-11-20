@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { Logger } from "@nestjs/common";
 
 import { DiscussionEntity } from "@/discussion/discussion.entity";
