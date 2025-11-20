@@ -538,14 +538,33 @@ export class UserController {
       };
 
     const days = 53 * 7 + 6;
-    const [userInformation, submissionCountPerDay, rank, hasPrivilege] = await Promise.all([
+    const [userInformation, submissionCountPerDay, rank, hasPrivilege, contestParticipationCount] = await Promise.all([
       this.userService.findUserInformationByUserId(user.id),
       this.submissionService.getUserRecentlySubmissionCountPerDay(user, days, request.timezone, request.now),
       this.userService.getUserRank(user),
       currentUser &&
         (currentUser.id === user.id ||
-          this.userPrivilegeService.userHasPrivilege(currentUser, UserPrivilegeType.ManageUser))
+          this.userPrivilegeService.userHasPrivilege(currentUser, UserPrivilegeType.ManageUser)),
+      this.ratingService.getUserContestParticipationCount(user.id)
     ]);
+
+    // Get rating history
+    const ratingChanges = await this.ratingService.getUserRatingHistory(user.id);
+    const ratingHistory: RatingChangeDto[] = await Promise.all(
+      ratingChanges.map(async change => {
+        const contest = await this.contestService.findContestById(change.contestId);
+        return {
+          contestId: change.contestId,
+          contestTitle: contest ? contest.title : "Unknown Contest",
+          time: change.time,
+          oldRating: change.oldRating,
+          newRating: change.newRating,
+          ratingChange: change.ratingChange,
+          rank: change.rank,
+          participantCount: change.participantCount
+        };
+      })
+    );
 
     return {
       meta: await this.userService.getUserMeta(user, currentUser),
@@ -559,7 +578,9 @@ export class UserController {
       },
       submissionCountPerDay,
       rank,
-      hasPrivilege
+      hasPrivilege,
+      contestParticipationCount,
+      ratingHistory
     };
   }
 

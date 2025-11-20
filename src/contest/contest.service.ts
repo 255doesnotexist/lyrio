@@ -86,11 +86,16 @@ export class ContestService {
     const queryBuilder = this.contestRepository.createQueryBuilder("contest");
 
     if (currentUser) {
-      // Show public contests OR contests owned by the current user
-      queryBuilder.where("contest.isPublic = :isPublic OR contest.ownerId = :ownerId", {
-        isPublic: true,
-        ownerId: currentUser.id
-      });
+      if (currentUser.isAdmin) {
+        // Show all contests for admins
+        // No filter needed
+      } else {
+        // Show public contests OR contests owned by the current user
+        queryBuilder.where("contest.isPublic = :isPublic OR contest.ownerId = :ownerId", {
+          isPublic: true,
+          ownerId: currentUser.id
+        });
+      }
     } else {
       // Only show public contests for anonymous users
       queryBuilder.where("contest.isPublic = :isPublic", { isPublic: true });

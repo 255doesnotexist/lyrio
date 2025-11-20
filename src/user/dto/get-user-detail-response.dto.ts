@@ -2,6 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 
 import { UserMetaDto } from "./user-meta.dto";
 import { UserInformationDto } from "./user-information.dto";
+import { RatingChangeDto } from "./get-user-rating-history-response.dto";
 
 export enum GetUserDetailResponseError {
   NO_SUCH_USER = "NO_SUCH_USER"
@@ -12,7 +13,6 @@ export class GetUserDetailResponseDto {
   error?: GetUserDetailResponseError;
 
   // TODO:
-  // rating history
   // discussion threads
 
   @ApiProperty()
@@ -34,4 +34,10 @@ export class GetUserDetailResponseDto {
 
   @ApiProperty()
   hasPrivilege?: boolean;
+
+  @ApiProperty()
+  contestParticipationCount?: number;
+
+  @ApiProperty({ type: [RatingChangeDto] })
+  ratingHistory?: RatingChangeDto[];
 }
