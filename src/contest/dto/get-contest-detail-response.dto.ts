@@ -1,7 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
 
-import { ContestType } from "../contest-type.enum";
 import { ContestProblemMetaDto } from "./contest-problem-meta.dto";
+
+import { ContestType } from "../contest-type.enum";
 
 export enum GetContestDetailResponseError {
   NO_SUCH_CONTEST = "NO_SUCH_CONTEST",

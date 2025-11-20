@@ -1,10 +1,11 @@
 import { Controller, Post, Body } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 
-import { UserEntity } from "@/user/user.entity";
 import { CurrentUser } from "@/common/user.decorator";
+import { UserEntity } from "@/user/user.entity";
 
 import { ContestService } from "./contest.service";
+
 import {
   GetContestListRequestDto,
   GetContestListResponseDto,

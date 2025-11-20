@@ -1,6 +1,7 @@
 import { Entity, PrimaryColumn, Index, ManyToOne, Column, JoinColumn } from "typeorm";
 
 import { UserEntity } from "@/user/user.entity";
+
 import { ContestEntity } from "./contest.entity";
 
 @Entity("contest_registration")

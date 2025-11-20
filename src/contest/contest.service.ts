@@ -1,25 +1,27 @@
 import { Injectable, Inject, forwardRef } from "@nestjs/common";
 import { InjectRepository, InjectDataSource } from "@nestjs/typeorm";
-import { Repository, DataSource, In, MoreThanOrEqual, LessThanOrEqual } from "typeorm";
 
-import { UserEntity } from "@/user/user.entity";
-import { ProblemEntity } from "@/problem/problem.entity";
-import { SubmissionEntity } from "@/submission/submission.entity";
-import { SubmissionStatus } from "@/submission/submission-status.enum";
+import { Repository, DataSource, In } from "typeorm";
+
 import { LocalizedContentService } from "@/localized-content/localized-content.service";
 import { LocalizedContentType } from "@/localized-content/localized-content.entity";
+import { ProblemEntity } from "@/problem/problem.entity";
+import { RatingService } from "@/rating/rating.service";
+import { SubmissionEntity } from "@/submission/submission.entity";
+import { SubmissionStatus } from "@/submission/submission-status.enum";
+import { UserEntity } from "@/user/user.entity";
 
 import { ContestEntity } from "./contest.entity";
 import { ContestProblemEntity } from "./contest-problem.entity";
 import { ContestRegistrationEntity } from "./contest-registration.entity";
 import { ContestType } from "./contest-type.enum";
+
 import {
   ContestMetaDto,
   ContestProblemMetaDto,
   ContestRanklistItemDto,
   ContestRanklistProblemStatusDto
 } from "./dto";
-import { RatingService } from "@/rating/rating.service";
 
 @Injectable()
 export class ContestService {
@@ -415,7 +417,7 @@ export class ContestService {
         problemStatuses.push({
           problemId: cp.problemId,
           orderIndex: cp.orderIndex,
-          score: score,
+          score,
           firstAcceptTime,
           status: score > 0 ? "solved" : null
         });
@@ -426,7 +428,7 @@ export class ContestService {
         userId: user.id,
         username: user.username,
         rating: user.rating,
-        totalScore: totalScore,
+        totalScore,
         problemStatuses
       });
     }
