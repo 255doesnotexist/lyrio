@@ -31,6 +31,9 @@ export class ContestMetaDto {
   ownerUsername: string;
 
   @ApiProperty()
+  ownerRating?: number;
+
+  @ApiProperty()
   createTime: Date;
 
   @ApiProperty()

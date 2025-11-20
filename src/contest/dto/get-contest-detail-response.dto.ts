@@ -46,6 +46,9 @@ export class GetContestDetailResponseDto {
   ownerUsername?: string;
 
   @ApiProperty()
+  ownerRating?: number;
+
+  @ApiProperty()
   createTime?: Date;
 
   @ApiProperty({ type: [ContestProblemMetaDto] })

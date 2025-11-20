@@ -98,6 +98,7 @@ export class ContestController {
       editorial: contest.editorial,
       ownerId: contest.ownerId,
       ownerUsername: owner.username,
+      ownerRating: owner.rating,
       createTime: contest.createTime,
       problems,
       hasPermissionToManage,

@@ -47,6 +47,9 @@ export class ContestRanklistItemDto {
   username: string;
 
   @ApiProperty()
+  rating?: number;
+
+  @ApiProperty()
   totalScore?: number;
 
   @ApiProperty()

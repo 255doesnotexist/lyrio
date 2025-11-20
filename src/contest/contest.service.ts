@@ -61,6 +61,7 @@ export class ContestService {
       isPublic: contest.isPublic,
       ownerId: contest.ownerId,
       ownerUsername: owner.username,
+      ownerRating: owner.rating,
       createTime: contest.createTime,
       problemCount: problems ? problems.length : 0
     };
@@ -323,6 +324,7 @@ export class ContestService {
         rank: 0,
         userId: user.id,
         username: user.username,
+        rating: user.rating,
         totalScore: hasEnded ? totalScore : null,
         problemStatuses
       });
@@ -423,6 +425,7 @@ export class ContestService {
         rank: 0,
         userId: user.id,
         username: user.username,
+        rating: user.rating,
         totalScore: totalScore,
         problemStatuses
       });
@@ -569,6 +572,7 @@ export class ContestService {
         rank: 0,
         userId: user.id,
         username: user.username,
+        rating: user.rating,
         solvedCount,
         totalPenalty,
         problemStatuses
