@@ -78,13 +78,27 @@ export class ContestService {
     return await this.checkPermissionToManage(contest, user);
   }
 
-  async getContestList(skipCount: number, takeCount: number): Promise<[ContestEntity[], number]> {
-    return await this.contestRepository.findAndCount({
-      where: { isPublic: true },
-      order: { startTime: "DESC" },
-      skip: skipCount,
-      take: takeCount
-    });
+  async getContestList(
+    skipCount: number,
+    takeCount: number,
+    currentUser?: UserEntity
+  ): Promise<[ContestEntity[], number]> {
+    const queryBuilder = this.contestRepository.createQueryBuilder("contest");
+
+    if (currentUser) {
+      // Show public contests OR contests owned by the current user
+      queryBuilder.where("contest.isPublic = :isPublic OR contest.ownerId = :ownerId", {
+        isPublic: true,
+        ownerId: currentUser.id
+      });
+    } else {
+      // Only show public contests for anonymous users
+      queryBuilder.where("contest.isPublic = :isPublic", { isPublic: true });
+    }
+
+    queryBuilder.orderBy("contest.startTime", "DESC").skip(skipCount).take(takeCount);
+
+    return await queryBuilder.getManyAndCount();
   }
 
   async getContestProblems(contestId: number): Promise<ContestProblemMetaDto[]> {

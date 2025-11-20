@@ -40,11 +40,17 @@ export class ContestController {
   constructor(private readonly contestService: ContestService) {}
 
   @Post("getContestList")
+  @ApiBearerAuth()
   @ApiOperation({ summary: "Get contest list with pagination." })
   async getContestList(
+    @CurrentUser() currentUser: UserEntity,
     @Body() request: GetContestListRequestDto
   ): Promise<GetContestListResponseDto> {
-    const [contests, count] = await this.contestService.getContestList(request.skipCount, request.takeCount);
+    const [contests, count] = await this.contestService.getContestList(
+      request.skipCount,
+      request.takeCount,
+      currentUser
+    );
 
     const contestMetas = await Promise.all(contests.map(contest => this.contestService.getContestMeta(contest)));
 
