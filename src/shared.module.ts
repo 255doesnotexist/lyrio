@@ -13,7 +13,7 @@ const sharedModules = [
   GoogleRecaptchaModule.forRootAsync({
     imports: [ConfigModule],
     useFactory: (configService: ConfigService) => ({
-      secretKey: configService.config.security.recaptcha.secretKey,
+      secretKey: configService.config.security.recaptcha.secretKey || "dummy-key-when-disabled",
       response: (req: RequestWithSession) => String(req.headers["x-recaptcha-token"]),
       skipIf: async (req: unknown) => {
         const request = req as RequestWithSession;

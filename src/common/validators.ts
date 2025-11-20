@@ -25,7 +25,10 @@ export function IsIntString(validationOptions?: ValidationOptions) {
 // class-validator's IsPort accepts strings only, but I prefer
 // writting port numbers as number
 export function IsPortNumber(validationOptions?: ValidationOptions) {
-  return If(value => Number.isInteger(value) && value >= 1 && value <= 65535, validationOptions);
+  return If(
+    (value: unknown) => Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 65535,
+    validationOptions
+  );
 }
 
 // A username is a string of 3 ~ 24 ASCII characters, and each character

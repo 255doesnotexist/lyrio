@@ -428,7 +428,7 @@ export class SubmissionController {
     // Hide test case scores in result if needed
     let processedResult = submissionDetail.result;
     if (shouldHideScore && processedResult) {
-      processedResult = this.hideTestCaseScores(processedResult, submission.status, isAdmin);
+      processedResult = this.hideTestCaseScores(processedResult, submission.status, isAdmin) as typeof processedResult;
     }
 
     // Check if user can view the code content

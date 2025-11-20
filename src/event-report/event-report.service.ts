@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 
 import moment from "moment";
-import ProxyAgent from "proxy-agent";
+import { ProxyAgent } from "proxy-agent";
 import { Telegraf } from "telegraf";
 import randomstring from "randomstring";
 
@@ -43,7 +43,10 @@ export class EventReportService {
 
   private readonly telegramBot: Telegraf;
 
-  constructor(private readonly configService: ConfigService, private readonly clusterSerivce: ClusterService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly clusterSerivce: ClusterService
+  ) {
     const eventReportConfig = this.configService.config.eventReport;
     this.enabled = !!eventReportConfig.telegramBotToken;
     if (!this.enabled) return;
@@ -54,9 +57,11 @@ export class EventReportService {
       this.telegramBot = eventReportConfig.telegramBotToken
         ? new Telegraf(eventReportConfig.telegramBotToken, {
             telegram: {
-              // ProxyAgent's typing is wrong
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              agent: eventReportConfig.proxyUrl ? (new ProxyAgent(eventReportConfig.proxyUrl) as any) : null,
+              agent: eventReportConfig.proxyUrl
+                ? new ProxyAgent({
+                    getProxyForUrl: () => eventReportConfig.proxyUrl
+                  })
+                : undefined,
               ...(eventReportConfig.telegramApiRoot
                 ? {
                     apiRoot: eventReportConfig.telegramApiRoot

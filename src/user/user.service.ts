@@ -1,6 +1,6 @@
 import crypto from "crypto";
 
-import { Injectable, forwardRef, Inject } from "@nestjs/common";
+import { Injectable, Logger, forwardRef, Inject } from "@nestjs/common";
 import { InjectRepository, InjectDataSource } from "@nestjs/typeorm";
 
 import { Repository, DataSource, Like, MoreThan, EntityManager } from "typeorm";
@@ -34,6 +34,8 @@ import {
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectDataSource()
     private readonly connection: DataSource,

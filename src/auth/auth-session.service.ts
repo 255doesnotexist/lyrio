@@ -1,7 +1,7 @@
 import { join } from "path";
 import fs from "fs-extra";
 
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 import jwt from "jsonwebtoken";
 import { Redis } from "ioredis";
@@ -29,6 +29,8 @@ export interface SessionInfo extends SessionInfoInternal {
 
 @Injectable()
 export class AuthSessionService {
+  private readonly logger = new Logger(AuthSessionService.name);
+
   private redis: RedisWithSessionManager;
 
   constructor(
