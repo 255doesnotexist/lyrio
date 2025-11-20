@@ -19,8 +19,9 @@ services:
   minio:
     default:
       endpoint: http://lyrio-minio.test
-      signEndpoint: null
-    forUser: null
+      urlEndpoint: null
+    forUserUpload: null
+    forUserDownload: null
     forJudge: null
     accessKey: minioadmin
     secretKey: minioadmin
