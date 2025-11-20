@@ -215,4 +215,91 @@ export class RatingService {
       }
     });
   }
+
+  /**
+   * Delete rating changes for a specific contest
+   */
+  async deleteRatingChangesForContest(contestId: number): Promise<void> {
+    await this.connection.transaction(async manager => {
+      await manager.delete(RatingChangeEntity, { contestId });
+    });
+  }
+
+  /**
+   * Delete rating changes for a contest and all contests after it (ordered by end time)
+   * This is used when recalculating ratings after rejudging
+   */
+  async deleteRatingChangesFromContestOnwards(
+    contestId: number,
+    contestEndTime: Date
+  ): Promise<number[]> {
+    return await this.connection.transaction(async manager => {
+      // Find all contests that ended at or after this contest
+      const contests = await manager
+        .createQueryBuilder(ContestEntity, "contest")
+        .where("contest.endTime >= :endTime", { endTime: contestEndTime })
+        .orderBy("contest.endTime", "ASC")
+        .addOrderBy("contest.id", "ASC")
+        .getMany();
+
+      const contestIds = contests.map(c => c.id);
+
+      if (contestIds.length > 0) {
+        // First, get all affected users BEFORE deleting rating changes
+        const affectedUserIds = await manager
+          .createQueryBuilder(RatingChangeEntity, "rc")
+          .select("DISTINCT rc.userId", "userId")
+          .where("rc.contestId IN (:...contestIds)", { contestIds })
+          .getRawMany();
+
+        // Delete all rating changes for these contests
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from(RatingChangeEntity)
+          .where("contestId IN (:...contestIds)", { contestIds })
+          .execute();
+
+        // Reset all users' ratings based on their rating before the recalculation point
+        if (affectedUserIds.length > 0) {
+          const userIds = affectedUserIds.map(u => u.userId);
+
+          // For each affected user, we need to:
+          // 1. Get their rating changes before this contest
+          // 2. Set their rating to the last rating change before this contest, or 1500 if none
+          for (const userId of userIds) {
+            const lastRatingChange = await manager
+              .createQueryBuilder(RatingChangeEntity, "rc")
+              .where("rc.userId = :userId", { userId })
+              .orderBy("rc.time", "DESC")
+              .limit(1)
+              .getOne();
+
+            const rating = lastRatingChange ? lastRatingChange.newRating : 1500;
+            await manager.update(UserEntity, { id: userId }, { rating });
+          }
+        }
+      }
+
+      return contestIds;
+    });
+  }
+
+  /**
+   * Get current rating for a user at a specific point in time (before a contest)
+   * Returns 1500 if the user has no rating history
+   */
+  async getUserRatingBeforeContest(userId: number, contestEndTime: Date): Promise<number> {
+    const lastRatingChange = await this.ratingChangeRepository
+      .createQueryBuilder("rc")
+      .innerJoin("rc.contest", "contest")
+      .where("rc.userId = :userId", { userId })
+      .andWhere("contest.endTime < :endTime", { endTime: contestEndTime })
+      .orderBy("contest.endTime", "DESC")
+      .addOrderBy("rc.time", "DESC")
+      .limit(1)
+      .getOne();
+
+    return lastRatingChange ? lastRatingChange.newRating : 1500;
+  }
 }

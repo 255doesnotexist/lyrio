@@ -641,14 +641,47 @@ export class ContestService {
   /**
    * Calculate rating changes for a contest after it ends
    * This should be called manually by an admin after the contest finishes
+   *
+   * @param contest The contest to calculate ratings for
+   * @param recalculate If true, delete existing rating changes and recalculate all contests from this one onwards
    */
-  async calculateContestRatings(contest: ContestEntity): Promise<void> {
+  async calculateContestRatings(contest: ContestEntity, recalculate: boolean = false): Promise<void> {
     // Check if contest has ended
     const now = new Date();
     if (now < contest.endTime) {
       throw new Error("Cannot calculate ratings for a contest that has not ended yet");
     }
 
+    if (recalculate) {
+      // Delete rating changes for this contest and all subsequent contests
+      const affectedContestIds = await this.ratingService.deleteRatingChangesFromContestOnwards(
+        contest.id,
+        contest.endTime
+      );
+
+      // Get all contests that need to be recalculated (in chronological order)
+      const contestsToRecalculate = await this.contestRepository
+        .createQueryBuilder("contest")
+        .where("contest.id IN (:...ids)", { ids: affectedContestIds })
+        .andWhere("contest.endTime <= :now", { now })
+        .orderBy("contest.endTime", "ASC")
+        .addOrderBy("contest.id", "ASC")
+        .getMany();
+
+      // Recalculate ratings for each contest in order
+      for (const contestToRecalc of contestsToRecalculate) {
+        await this.calculateSingleContestRatings(contestToRecalc);
+      }
+    } else {
+      // Just calculate ratings for this contest
+      await this.calculateSingleContestRatings(contest);
+    }
+  }
+
+  /**
+   * Calculate ratings for a single contest (internal method)
+   */
+  private async calculateSingleContestRatings(contest: ContestEntity): Promise<void> {
     // Get contest ranklist
     const ranklist = await this.getContestRanklist(contest.id);
 

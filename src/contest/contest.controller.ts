@@ -357,7 +357,7 @@ export class ContestController {
     }
 
     // Calculate ratings
-    await this.contestService.calculateContestRatings(contest);
+    await this.contestService.calculateContestRatings(contest, request.recalculate || false);
 
     return {};
   }
