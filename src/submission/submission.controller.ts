@@ -1,5 +1,7 @@
-import { Controller, Post, Body, BadRequestException, Inject, forwardRef } from "@nestjs/common";
+import { Controller, Post, Body, BadRequestException, Inject, forwardRef, Req } from "@nestjs/common";
 import { ApiOperation, ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+
+import type { Request } from "express";
 
 import { Recaptcha } from "@nestlab/google-recaptcha";
 
@@ -132,7 +134,11 @@ export class SubmissionController {
   })
   @ApiBearerAuth()
   @Post("submit")
-  async submit(@CurrentUser() currentUser: UserEntity, @Body() request: SubmitRequestDto): Promise<SubmitResponseDto> {
+  async submit(
+    @CurrentUser() currentUser: UserEntity,
+    @Body() request: SubmitRequestDto,
+    @Req() req: Request
+  ): Promise<SubmitResponseDto> {
     if (!currentUser)
       return {
         error: SubmitResponseError.PERMISSION_DENIED
@@ -152,12 +158,26 @@ export class SubmissionController {
           // Check if the problem is in the contest
           const isProblemInContest = await this.contestService.isProblemInContest(request.contestId, problem.id);
           if (isProblemInContest) {
-            // Check if user is registered for the contest
-            const isRegistered = await this.contestService.isUserRegisteredForContest(
-              request.contestId,
-              currentUser.id
-            );
-            if (isRegistered) {
+            // Check contest time range
+            const now = new Date();
+            const isContestStarted = now >= contest.startTime;
+            const isContestEnded = now > contest.endTime;
+
+            // Allow submission only during contest time range (or if user has management permission)
+            const hasManagementPermission =
+              currentUser.isAdmin || (await this.contestService.checkPermissionToManage(contest, currentUser));
+
+            if (isContestStarted && !isContestEnded) {
+              // Check if user is registered for the contest
+              const isRegistered = await this.contestService.isUserRegisteredForContest(
+                request.contestId,
+                currentUser.id
+              );
+              if (isRegistered) {
+                hasContestAccess = true;
+              }
+            } else if (hasManagementPermission) {
+              // Contest owners and admins can submit even outside contest time
               hasContestAccess = true;
             }
           }
@@ -184,7 +204,8 @@ export class SubmissionController {
         problem,
         request.content,
         request.uploadInfo,
-        request.contestId
+        request.contestId,
+        req.ip
       );
 
       if (validationError && validationError.length > 0) throw new BadRequestException(validationError);
@@ -450,7 +471,9 @@ export class SubmissionController {
         timeUsed: shouldHideScore && !isAdmin ? null : submission.timeUsed,
         memoryUsed: shouldHideScore && !isAdmin ? null : submission.memoryUsed,
         contestId: submission.contestId,
-        contestTitle: contest?.title
+        contestTitle: contest?.title,
+        // Only admins can view submitter IP for anti-cheating
+        submitterIp: isAdmin ? submission.submitterIp : null
       },
       content: canViewCode ? submissionDetail.content : null,
       progress: progress || processedResult,
